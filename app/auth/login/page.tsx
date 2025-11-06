@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import Link from "next/link";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Mail } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,7 +22,10 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [accountStatus, setAccountStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   useEffect(() => {
     // Controlla se c'è un errore nei parametri URL
@@ -49,6 +52,8 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setAccountStatus(null);
+    setEmailSent(false);
     setLoading(true);
 
     try {
@@ -64,6 +69,7 @@ export default function LoginPage() {
 
         if (!checkData.canLogin) {
           setError(checkData.message || "Non è possibile effettuare il login");
+          setAccountStatus(checkData.accountStatus);
           setLoading(false);
           return;
         }
@@ -97,6 +103,45 @@ export default function LoginPage() {
       setError("Si è verificato un errore imprevisto. Riprova più tardi.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!email) {
+      setError(
+        "Inserisci la tua email prima di richiedere una nuova email di verifica",
+      );
+      return;
+    }
+
+    setResendingEmail(true);
+    setEmailSent(false);
+
+    try {
+      const response = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setEmailSent(true);
+        setError("");
+
+        // In modalità sviluppo, mostra il link
+        if (data.verificationUrl) {
+          console.log("🔗 Link di verifica:", data.verificationUrl);
+        }
+      } else {
+        setError(data.error || "Errore durante l'invio dell'email");
+      }
+    } catch (err) {
+      console.error("Resend email error:", err);
+      setError("Errore durante l'invio dell'email di verifica");
+    } finally {
+      setResendingEmail(false);
     }
   };
 
@@ -140,6 +185,42 @@ export default function LoginPage() {
                 <div className="flex-1">
                   <p className="font-medium mb-1">Errore di autenticazione</p>
                   <p className="text-red-600">{error}</p>
+
+                  {/* Mostra pulsante "Reinvia email" se l'account non è verificato */}
+                  {accountStatus === "PENDING_VERIFICATION" && (
+                    <div className="mt-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleResendVerification}
+                        disabled={resendingEmail}
+                        className="w-full"
+                      >
+                        <Mail className="mr-2 h-4 w-4" />
+                        {resendingEmail
+                          ? "Invio in corso..."
+                          : "Reinvia email di verifica"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {emailSent && (
+              <div className="flex items-start gap-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-4">
+                <Mail className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium mb-1">Email inviata!</p>
+                  <p className="text-green-600">
+                    Controlla la tua casella di posta e clicca sul link per
+                    verificare il tuo account.
+                  </p>
+                  <p className="text-xs text-green-600 mt-2">
+                    (In modalità sviluppo: controlla la console del server per
+                    il link)
+                  </p>
                 </div>
               </div>
             )}
