@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendApprovalEmail } from "@/lib/email";
 
 export async function POST(request: Request) {
   try {
     const session = await auth();
 
     if (!session?.user?.isSuperAdmin) {
-      return NextResponse.json(
-        { error: "Non autorizzato" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
     }
 
     const body = await request.json();
@@ -19,7 +17,7 @@ export async function POST(request: Request) {
     if (!userId) {
       return NextResponse.json(
         { error: "ID utente mancante" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -29,6 +27,15 @@ export async function POST(request: Request) {
         accountStatus: "APPROVED",
       },
     });
+
+    // Invia email di approvazione
+    try {
+      await sendApprovalEmail(user.email, user.name || "Utente");
+      console.log("✅ Email di approvazione inviata a:", user.email);
+    } catch (emailError) {
+      console.error("❌ Errore invio email approvazione:", emailError);
+      // Non blocchiamo l'approvazione se l'email fallisce
+    }
 
     console.log("=== USER APPROVED ===");
     console.log("User:", user.email);
@@ -47,7 +54,7 @@ export async function POST(request: Request) {
     console.error("Error approving user:", error);
     return NextResponse.json(
       { error: "Errore nell'approvazione dell'utente" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -14,5 +14,15 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: studio_compliance_mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    environment:
+      MH_STORAGE: memory
+
 volumes:
   postgres_data:
