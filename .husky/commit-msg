@@ -1,0 +1,2 @@
+# Verifica formato commit con commitlint
+npx --no -- commitlint --edit $1
