@@ -1,0 +1,20 @@
+node_modules
+.next
+.env
+.env.local
+dist
+build
+*.log
+.DS_Store
+uploads/
+.vercel
+.turbo
+coverage
+.playwright
+test-results
+
+# Git backup
+.git_backup/
+
+# Build artifacts
+tsconfig.tsbuildinfo
