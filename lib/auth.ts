@@ -35,53 +35,69 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const validated = loginSchema.safeParse(credentials);
+        try {
+          const validated = loginSchema.safeParse(credentials);
 
-        if (!validated.success) {
-          return null;
+          if (!validated.success) {
+            throw new Error("Email o password non validi");
+          }
+
+          const { email, password } = validated.data;
+
+          const user = await prisma.user.findUnique({
+            where: { email },
+          });
+
+          if (!user || !user.password) {
+            throw new Error("Email o password non validi");
+          }
+
+          const accountStatus = (user as any).accountStatus;
+
+          if (accountStatus === "PENDING_VERIFICATION") {
+            throw new Error(
+              "Email non verificata. Controlla la tua casella di posta.",
+            );
+          }
+
+          if (accountStatus === "PENDING_APPROVAL") {
+            throw new Error(
+              "Account in attesa di approvazione. Verrai contattato quando l'account sarà attivato.",
+            );
+          }
+
+          if (accountStatus === "REJECTED") {
+            throw new Error(
+              "Account rifiutato. Contatta l'amministratore per maggiori informazioni.",
+            );
+          }
+
+          if (accountStatus !== "APPROVED" && !user.isSuperAdmin) {
+            throw new Error(
+              "Account non autorizzato. Contatta l'amministratore.",
+            );
+          }
+
+          const isValid = await bcrypt.compare(password, user.password);
+
+          if (!isValid) {
+            throw new Error("Email o password non validi");
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+            isSuperAdmin: user.isSuperAdmin,
+          };
+        } catch (error) {
+          // Re-throw the error with the original message
+          if (error instanceof Error) {
+            throw error;
+          }
+          throw new Error("Errore durante l'autenticazione");
         }
-
-        const { email, password } = validated.data;
-
-        const user = await prisma.user.findUnique({
-          where: { email },
-        });
-
-        if (!user || !user.password) {
-          return null;
-        }
-
-        const accountStatus = (user as any).accountStatus;
-
-        if (accountStatus === "PENDING_VERIFICATION") {
-          throw new Error("Email non verificata. Controlla la tua casella di posta.");
-        }
-
-        if (accountStatus === "PENDING_APPROVAL") {
-          throw new Error("Account in attesa di approvazione da parte dell'amministratore.");
-        }
-
-        if (accountStatus === "REJECTED") {
-          throw new Error("Account rifiutato. Contatta l'amministratore per maggiori informazioni.");
-        }
-
-        if (accountStatus !== "APPROVED" && !user.isSuperAdmin) {
-          throw new Error("Account non autorizzato.");
-        }
-
-        const isValid = await bcrypt.compare(password, user.password);
-
-        if (!isValid) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-          isSuperAdmin: user.isSuperAdmin,
-        };
       },
     }),
   ],
