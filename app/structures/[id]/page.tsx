@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -9,7 +9,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Building2, Users, MapPin, Calendar, Phone, Mail } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Building2,
+  Users,
+  MapPin,
+  Calendar,
+  Phone,
+  Mail,
+  Edit,
+} from "lucide-react";
 
 interface Structure {
   id: string;
@@ -30,6 +39,7 @@ interface Structure {
 
 export default function StructureDashboard() {
   const params = useParams();
+  const router = useRouter();
   const structureId = params.id as string;
 
   const [structure, setStructure] = useState<Structure | null>(null);
@@ -75,14 +85,26 @@ export default function StructureDashboard() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          <Building2 className="h-8 w-8 text-purple-600" />
-          {structure.name}
-        </h1>
-        {structure.code && (
-          <p className="text-muted-foreground mt-1">Codice: {structure.code}</p>
-        )}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <Building2 className="h-8 w-8 text-purple-600" />
+            {structure.name}
+          </h1>
+          {structure.code && (
+            <p className="text-muted-foreground mt-1">
+              Codice: {structure.code}
+            </p>
+          )}
+        </div>
+        <Button
+          onClick={() => router.push(`/structures/${structureId}/edit`)}
+          variant="outline"
+          className="flex items-center gap-2"
+        >
+          <Edit className="h-4 w-4" />
+          Modifica Struttura
+        </Button>
       </div>
 
       {/* Info Cards */}

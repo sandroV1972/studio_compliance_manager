@@ -145,8 +145,8 @@ export function StructureNav({ structureId }: StructureNavProps) {
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => router.push("/structures")}>
-              <Building2 className="h-4 w-4 mr-2" />
-              Tutte le strutture
+              <LayoutDashboard className="h-4 w-4 mr-2" />
+              Dashboard
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

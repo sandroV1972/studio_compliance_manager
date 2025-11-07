@@ -1,11 +1,31 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatDate } from "@/lib/utils";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { formatDate, formatDateTime } from "@/lib/utils";
 import Link from "next/link";
-import { Shield, Activity, AlertCircle, CheckCircle, XCircle, Clock } from "lucide-react";
+import {
+  Shield,
+  Activity,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Clock,
+} from "lucide-react";
 
 async function getAuditLogs() {
   const logs = await prisma.auditLog.findMany({
@@ -46,7 +66,12 @@ async function getAuditStats() {
     prisma.auditLog.count({
       where: {
         action: {
-          in: ['DELETE_ORGANIZATION', 'DELETE_USER', 'PROMOTE_SUPER_ADMIN', 'DELETE_DEADLINE'],
+          in: [
+            "DELETE_ORGANIZATION",
+            "DELETE_USER",
+            "PROMOTE_SUPER_ADMIN",
+            "DELETE_DEADLINE",
+          ],
         },
       },
     }),
@@ -62,23 +87,23 @@ export default async function AdminAuditLogPage() {
     redirect("/auth/login");
   }
 
-  const [logs, stats] = await Promise.all([
-    getAuditLogs(),
-    getAuditStats(),
-  ]);
+  const [logs, stats] = await Promise.all([getAuditLogs(), getAuditStats()]);
 
   const getActionIcon = (action: string) => {
-    if (action.startsWith('DELETE')) return <XCircle className="h-4 w-4 text-red-600" />;
-    if (action.startsWith('CREATE')) return <CheckCircle className="h-4 w-4 text-green-600" />;
-    if (action.startsWith('UPDATE')) return <Activity className="h-4 w-4 text-blue-600" />;
+    if (action.startsWith("DELETE"))
+      return <XCircle className="h-4 w-4 text-red-600" />;
+    if (action.startsWith("CREATE"))
+      return <CheckCircle className="h-4 w-4 text-green-600" />;
+    if (action.startsWith("UPDATE"))
+      return <Activity className="h-4 w-4 text-blue-600" />;
     return <AlertCircle className="h-4 w-4 text-orange-600" />;
   };
 
   const getActionColor = (action: string) => {
-    if (action.startsWith('DELETE')) return 'bg-red-100 text-red-800';
-    if (action.startsWith('CREATE')) return 'bg-green-100 text-green-800';
-    if (action.startsWith('UPDATE')) return 'bg-blue-100 text-blue-800';
-    return 'bg-orange-100 text-orange-800';
+    if (action.startsWith("DELETE")) return "bg-red-100 text-red-800";
+    if (action.startsWith("CREATE")) return "bg-green-100 text-green-800";
+    if (action.startsWith("UPDATE")) return "bg-blue-100 text-blue-800";
+    return "bg-orange-100 text-orange-800";
   };
 
   return (
@@ -103,7 +128,9 @@ export default async function AdminAuditLogPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalLogs}</div>
-            <p className="text-xs text-muted-foreground mt-1">Tutte le azioni registrate</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Tutte le azioni registrate
+            </p>
           </CardContent>
         </Card>
 
@@ -114,18 +141,24 @@ export default async function AdminAuditLogPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.todayLogs}</div>
-            <p className="text-xs text-muted-foreground mt-1">Azioni nelle ultime 24h</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Azioni nelle ultime 24h
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Azioni Critiche</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Azioni Critiche
+            </CardTitle>
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.criticalActions}</div>
-            <p className="text-xs text-muted-foreground mt-1">Eliminazioni e promozioni</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Eliminazioni e promozioni
+            </p>
           </CardContent>
         </Card>
 
@@ -136,7 +169,9 @@ export default async function AdminAuditLogPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{logs.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Log visualizzati</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Log visualizzati
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -145,7 +180,8 @@ export default async function AdminAuditLogPage() {
         <CardHeader>
           <CardTitle>Log delle Attività</CardTitle>
           <CardDescription>
-            Ultimi 100 eventi registrati nel sistema (ordinati per data decrescente)
+            Ultimi 100 eventi registrati nel sistema (ordinati per data
+            decrescente)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -162,7 +198,10 @@ export default async function AdminAuditLogPage() {
             <TableBody>
               {logs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={5}
+                    className="text-center text-muted-foreground"
+                  >
                     Nessun log disponibile
                   </TableCell>
                 </TableRow>
@@ -172,16 +211,15 @@ export default async function AdminAuditLogPage() {
                     <TableCell>
                       <div className="flex items-center gap-1 text-sm">
                         <Clock className="h-3 w-3 text-muted-foreground" />
-                        <span>{formatDate(log.createdAt)}</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(log.createdAt).toLocaleTimeString('it-IT')}
+                        <span>{formatDateTime(log.createdAt)}</span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {getActionIcon(log.action)}
-                        <span className={`text-xs px-2 py-1 rounded font-medium ${getActionColor(log.action)}`}>
+                        <span
+                          className={`text-xs px-2 py-1 rounded font-medium ${getActionColor(log.action)}`}
+                        >
                           {log.action}
                         </span>
                       </div>
@@ -195,7 +233,9 @@ export default async function AdminAuditLogPage() {
                           {log.user.name || log.user.email}
                         </Link>
                       ) : (
-                        <span className="text-sm text-muted-foreground">Sistema</span>
+                        <span className="text-sm text-muted-foreground">
+                          Sistema
+                        </span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -213,7 +253,7 @@ export default async function AdminAuditLogPage() {
                     <TableCell>
                       {log.metadata ? (
                         <div className="text-xs text-muted-foreground max-w-md truncate">
-                          {typeof log.metadata === 'string'
+                          {typeof log.metadata === "string"
                             ? log.metadata
                             : JSON.stringify(log.metadata)}
                         </div>

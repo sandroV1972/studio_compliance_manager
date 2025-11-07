@@ -15,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, UserPlus, Users } from "lucide-react";
+import { ArrowLeft, UserPlus, Users, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { validateFiscalCode } from "@/lib/utils";
 
@@ -41,6 +41,8 @@ export default function NewPersonPage() {
   const [loading, setLoading] = useState(false);
   const [existingPeople, setExistingPeople] = useState<ExistingPerson[]>([]);
   const [loadingPeople, setLoadingPeople] = useState(true);
+  const [fiscalCodeError, setFiscalCodeError] = useState<string>("");
+  const [fiscalCodeTouched, setFiscalCodeTouched] = useState(false);
 
   // Form per nuovo personale
   const [newPersonForm, setNewPersonForm] = useState({
@@ -79,16 +81,106 @@ export default function NewPersonPage() {
     }
   };
 
+  const validateFiscalCodeField = async (fiscalCode: string) => {
+    if (!fiscalCode) {
+      setFiscalCodeError("Il codice fiscale è obbligatorio");
+      return false;
+    }
+
+    if (!validateFiscalCode(fiscalCode)) {
+      setFiscalCodeError("Il codice fiscale non è formalmente corretto");
+      return false;
+    }
+
+    try {
+      const response = await fetch("/api/people/check-fiscal-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fiscalCode }),
+      });
+
+      const data = await response.json();
+
+      if (data.exists) {
+        setFiscalCodeError(data.message);
+        return false;
+      }
+
+      setFiscalCodeError("");
+      return true;
+    } catch (error) {
+      setFiscalCodeError("Errore durante la verifica del codice fiscale");
+      return false;
+    }
+  };
+
+  const handleFiscalCodeBlur = () => {
+    setFiscalCodeTouched(true);
+    if (newPersonForm.fiscalCode) {
+      validateFiscalCodeField(newPersonForm.fiscalCode);
+    }
+  };
+
+  const handleFiscalCodeChange = (value: string) => {
+    setNewPersonForm({ ...newPersonForm, fiscalCode: value });
+    if (fiscalCodeTouched && value) {
+      validateFiscalCodeField(value);
+    }
+  };
+
+  // Helper per formattare l'input della data mentre l'utente digita
+  const formatDateInput = (value: string): string => {
+    // Rimuovi tutti i caratteri non numerici
+    const numbers = value.replace(/\D/g, "");
+
+    // Aggiungi gli slash automaticamente
+    if (numbers.length <= 2) {
+      return numbers;
+    } else if (numbers.length <= 4) {
+      return `${numbers.slice(0, 2)}/${numbers.slice(2)}`;
+    } else {
+      return `${numbers.slice(0, 2)}/${numbers.slice(2, 4)}/${numbers.slice(4, 8)}`;
+    }
+  };
+
+  // Helper per convertire data da dd/mm/yyyy a yyyy-mm-dd
+  const convertDateToISO = (dateStr: string): string | null => {
+    if (!dateStr) return null;
+    const parts = dateStr.split("/");
+    if (parts.length !== 3) return null;
+    const [day, month, year] = parts;
+    if (!day || !month || !year) return null;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  };
+
   const handleCreateNew = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Valida il codice fiscale prima di inviare
+    const isFiscalCodeValid = await validateFiscalCodeField(
+      newPersonForm.fiscalCode,
+    );
+    if (!isFiscalCodeValid) {
+      alert(
+        "Impossibile procedere: il codice fiscale non è valido o esiste già nell'organizzazione",
+      );
+      return;
+    }
+
     setLoading(true);
 
     try {
+      // Converti le date dal formato italiano a ISO
+      const hireDate = convertDateToISO(newPersonForm.hireDate);
+      const birthDate = convertDateToISO(newPersonForm.birthDate);
+
       const response = await fetch("/api/people", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...newPersonForm,
+          hireDate,
+          birthDate,
           structureId, // Assegna automaticamente alla struttura corrente
         }),
       });
@@ -218,19 +310,23 @@ export default function NewPersonPage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="fiscalCode">Codice Fiscale</Label>
+                    <Label htmlFor="fiscalCode">Codice Fiscale *</Label>
                     <Input
                       id="fiscalCode"
+                      required
                       value={newPersonForm.fiscalCode}
-                      onChange={(e) =>
-                        setNewPersonForm({
-                          ...newPersonForm,
-                          fiscalCode: e.target.value,
-                        })
-                      }
+                      onChange={(e) => handleFiscalCodeChange(e.target.value)}
+                      onBlur={handleFiscalCodeBlur}
                       placeholder="RSSMRA80A01H501U"
                       maxLength={16}
+                      className={fiscalCodeError ? "border-red-500" : ""}
                     />
+                    {fiscalCodeError && (
+                      <div className="flex items-center gap-2 mt-2 text-sm text-red-600">
+                        <AlertCircle className="h-4 w-4" />
+                        <span>{fiscalCodeError}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -271,28 +367,32 @@ export default function NewPersonPage() {
                       <Label htmlFor="hireDate">Data Assunzione</Label>
                       <Input
                         id="hireDate"
-                        type="date"
+                        type="text"
                         value={newPersonForm.hireDate}
                         onChange={(e) =>
                           setNewPersonForm({
                             ...newPersonForm,
-                            hireDate: e.target.value,
+                            hireDate: formatDateInput(e.target.value),
                           })
                         }
+                        placeholder="gg/mm/aaaa"
+                        maxLength={10}
                       />
                     </div>
                     <div>
                       <Label htmlFor="birthDate">Data di Nascita</Label>
                       <Input
                         id="birthDate"
-                        type="date"
+                        type="text"
                         value={newPersonForm.birthDate}
                         onChange={(e) =>
                           setNewPersonForm({
                             ...newPersonForm,
-                            birthDate: e.target.value,
+                            birthDate: formatDateInput(e.target.value),
                           })
                         }
+                        placeholder="gg/mm/aaaa"
+                        maxLength={10}
                       />
                     </div>
                   </div>

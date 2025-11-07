@@ -140,6 +140,11 @@ export default function PeoplePage() {
                               Assunto:{" "}
                               {new Date(person.hireDate).toLocaleDateString(
                                 "it-IT",
+                                {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                },
                               )}
                             </div>
                           )}

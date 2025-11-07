@@ -195,8 +195,25 @@ model Structure {
   postalCode     String?
   phone          String?
   email          String?
-  notes          String?
-  active         Boolean @default(true)
+  pec            String?
+  website        String?
+
+  // Dati fiscali e legali
+  vatNumber  String? // Partita IVA della struttura
+  fiscalCode String? // Codice Fiscale della struttura
+
+  // Responsabili
+  responsiblePersonId String? // ID della persona responsabile della struttura
+  legalRepName        String? // Nome rappresentante legale (se diverso dal responsabile)
+
+  // Altri dati utili
+  licenseNumber   String? // Numero autorizzazione sanitaria
+  licenseExpiry   DateTime? // Scadenza autorizzazione
+  insurancePolicy String? // Numero polizza assicurativa
+  insuranceExpiry DateTime? // Scadenza polizza
+
+  notes  String?
+  active Boolean @default(true)
 
   organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   personStructures  PersonStructure[]
@@ -207,6 +224,7 @@ model Structure {
   updatedAt DateTime @updatedAt
 
   @@index([organizationId])
+  @@index([responsiblePersonId])
 }
 
 model Person {

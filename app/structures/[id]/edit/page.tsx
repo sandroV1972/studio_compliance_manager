@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,9 +23,12 @@ interface Person {
   lastName: string;
 }
 
-export default function NewStructurePage() {
+export default function EditStructurePage() {
   const router = useRouter();
+  const params = useParams();
+  const structureId = params.id as string;
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const [people, setPeople] = useState<Person[]>([]);
   const [organizationId, setOrganizationId] = useState<string>("");
   const [formData, setFormData] = useState({
@@ -51,16 +54,18 @@ export default function NewStructurePage() {
   });
 
   useEffect(() => {
-    loadOrganizationAndPeople();
-  }, []);
+    loadData();
+  }, [structureId]);
 
-  const loadOrganizationAndPeople = async () => {
+  const loadData = async () => {
     try {
+      // Carica organizzazione
       const orgResponse = await fetch("/api/user/organization");
-      if (!orgResponse.ok) return;
+      if (!orgResponse.ok) throw new Error("Errore caricamento organizzazione");
       const orgData = await orgResponse.json();
       setOrganizationId(orgData.id);
 
+      // Carica persone
       const peopleResponse = await fetch(
         `/api/organizations/${orgData.id}/people`,
       );
@@ -68,8 +73,48 @@ export default function NewStructurePage() {
         const peopleData = await peopleResponse.json();
         setPeople(peopleData.people || []);
       }
+
+      // Carica struttura
+      const structureResponse = await fetch(`/api/structures/${structureId}`);
+      if (!structureResponse.ok) throw new Error("Struttura non trovata");
+      const structure = await structureResponse.json();
+
+      // Formatta date da ISO a gg/mm/aaaa
+      const formatDateFromISO = (isoDate: string | null): string => {
+        if (!isoDate) return "";
+        const date = new Date(isoDate);
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+      };
+
+      setFormData({
+        name: structure.name || "",
+        code: structure.code || "",
+        address: structure.address || "",
+        city: structure.city || "",
+        province: structure.province || "",
+        postalCode: structure.postalCode || "",
+        phone: structure.phone || "",
+        email: structure.email || "",
+        pec: structure.pec || "",
+        website: structure.website || "",
+        vatNumber: structure.vatNumber || "",
+        fiscalCode: structure.fiscalCode || "",
+        responsiblePersonId: structure.responsiblePersonId || "",
+        legalRepName: structure.legalRepName || "",
+        licenseNumber: structure.licenseNumber || "",
+        licenseExpiry: formatDateFromISO(structure.licenseExpiry),
+        insurancePolicy: structure.insurancePolicy || "",
+        insuranceExpiry: formatDateFromISO(structure.insuranceExpiry),
+        notes: structure.notes || "",
+      });
     } catch (error) {
       console.error("Errore caricamento dati:", error);
+      alert(error instanceof Error ? error.message : "Errore caricamento dati");
+    } finally {
+      setLoadingData(false);
     }
   };
 
@@ -96,8 +141,8 @@ export default function NewStructurePage() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/structures", {
-        method: "POST",
+      const response = await fetch(`/api/structures/${structureId}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
@@ -105,34 +150,40 @@ export default function NewStructurePage() {
       if (!response.ok) {
         const error = await response.json();
         throw new Error(
-          error.error || "Errore nella creazione della struttura",
+          error.error || "Errore nell'aggiornamento della struttura",
         );
       }
 
-      const structure = await response.json();
-
-      // Reindirizza alla nuova struttura
-      router.push(`/structures/${structure.id}`);
+      // Reindirizza alla struttura
+      router.push(`/structures/${structureId}`);
     } catch (error) {
       console.error("Errore:", error);
       alert(
         error instanceof Error
           ? error.message
-          : "Errore nella creazione della struttura",
+          : "Errore nell'aggiornamento della struttura",
       );
       setLoading(false);
     }
   };
 
+  if (loadingData) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center">Caricamento...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-6">
       <div className="mb-6">
         <Link
-          href="/structures"
+          href={`/structures/${structureId}`}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          Torna alle strutture
+          Torna alla struttura
         </Link>
       </div>
 
@@ -140,11 +191,9 @@ export default function NewStructurePage() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Building2 className="h-6 w-6 text-purple-600" />
-            <CardTitle>Crea Nuova Struttura</CardTitle>
+            <CardTitle>Modifica Struttura</CardTitle>
           </div>
-          <CardDescription>
-            Aggiungi una nuova struttura alla tua organizzazione
-          </CardDescription>
+          <CardDescription>Aggiorna i dati della struttura</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -459,13 +508,13 @@ export default function NewStructurePage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.push("/structures")}
+                onClick={() => router.push(`/structures/${structureId}`)}
                 disabled={loading}
               >
                 Annulla
               </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? "Creazione in corso..." : "Crea Struttura"}
+                {loading ? "Salvataggio in corso..." : "Salva Modifiche"}
               </Button>
             </div>
           </form>

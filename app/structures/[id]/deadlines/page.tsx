@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, AlertCircle, CheckCircle2, Clock, Plus } from "lucide-react";
+import { NewDeadlineModal } from "@/components/deadlines/new-deadline-modal";
 
 interface Deadline {
   id: string;
@@ -25,13 +26,32 @@ interface Deadline {
 
 export default function DeadlinesPage() {
   const params = useParams();
-  const organizationId = params.id as string;
+  const structureId = params.id as string;
   const [deadlines, setDeadlines] = useState<Deadline[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [organizationId, setOrganizationId] = useState<string>("");
 
   useEffect(() => {
-    loadDeadlines();
+    loadOrganization();
+  }, []);
+
+  useEffect(() => {
+    if (organizationId) {
+      loadDeadlines();
+    }
   }, [organizationId]);
+
+  const loadOrganization = async () => {
+    try {
+      const response = await fetch("/api/user/organization");
+      if (!response.ok) return;
+      const data = await response.json();
+      setOrganizationId(data.id);
+    } catch (error) {
+      console.error("Errore:", error);
+    }
+  };
 
   const loadDeadlines = async () => {
     try {
@@ -46,6 +66,11 @@ export default function DeadlinesPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    loadDeadlines(); // Ricarica le scadenze dopo la creazione
   };
 
   const getStatusBadge = (status: string, dueDate: string) => {
@@ -78,7 +103,7 @@ export default function DeadlinesPage() {
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString("it-IT", {
       day: "2-digit",
-      month: "long",
+      month: "2-digit",
       year: "numeric",
     });
   };
@@ -100,11 +125,17 @@ export default function DeadlinesPage() {
             Gestisci tutte le scadenze dell'organizzazione
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setIsModalOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Nuova Scadenza
         </Button>
       </div>
+
+      <NewDeadlineModal
+        organizationId={organizationId}
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+      />
 
       <Card>
         <CardHeader>
