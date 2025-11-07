@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     console.error("Errore creazione organizzazione:", error);
     return NextResponse.json(
       { error: "Errore nella creazione dell'organizzazione" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -51,16 +51,23 @@ export async function GET() {
 
     const organizations = await prisma.organization.findMany({
       where: {
-        members: {
+        users: {
           some: {
             userId: session.user.id,
           },
         },
       },
       include: {
-        members: {
+        users: {
           where: {
             userId: session.user.id,
+          },
+        },
+        _count: {
+          select: {
+            people: true,
+            structures: true,
+            deadlineInstances: true,
           },
         },
       },
@@ -71,7 +78,7 @@ export async function GET() {
     console.error("Errore recupero organizzazioni:", error);
     return NextResponse.json(
       { error: "Errore nel recupero delle organizzazioni" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

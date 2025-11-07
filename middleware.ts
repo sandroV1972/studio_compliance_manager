@@ -8,7 +8,9 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith("/auth")) {
     if (session && pathname !== "/auth/logout") {
-      return NextResponse.redirect(new URL("/admin", request.url));
+      // Redirect basato sul ruolo dell'utente
+      const redirectUrl = session.user.isSuperAdmin ? "/admin" : "/dashboard";
+      return NextResponse.redirect(new URL(redirectUrl, request.url));
     }
     return NextResponse.next();
   }
@@ -18,7 +20,11 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith("/admin") && !session.user.isSuperAdmin) {
-    return NextResponse.redirect(new URL("/auth/login", request.url));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  if (pathname.startsWith("/dashboard") && session.user.isSuperAdmin) {
+    return NextResponse.redirect(new URL("/admin", request.url));
   }
 
   return NextResponse.next();
@@ -35,5 +41,6 @@ export const config = {
     "/settings/:path*",
     "/auth/:path*",
     "/onboarding",
+    "/dashboard/:path*",
   ],
 };

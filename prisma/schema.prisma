@@ -81,22 +81,22 @@ enum NotificationStatus {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  emailVerified DateTime?
-  name          String?
-  password      String?
-  image         String?
-  isSuperAdmin  Boolean   @default(false)
-  accountStatus String    @default("PENDING_VERIFICATION") // PENDING_VERIFICATION, PENDING_APPROVAL, APPROVED, REJECTED
-  emailVerificationToken String?
+  id                       String    @id @default(cuid())
+  email                    String    @unique
+  emailVerified            DateTime?
+  name                     String?
+  password                 String?
+  image                    String?
+  isSuperAdmin             Boolean   @default(false)
+  accountStatus            String    @default("PENDING_VERIFICATION") // PENDING_VERIFICATION, PENDING_APPROVAL, APPROVED, REJECTED
+  emailVerificationToken   String?
   emailVerificationExpires DateTime?
 
-  accounts           Account[]
-  sessions           Session[]
-  organizationUsers  OrganizationUser[]
-  documents          Document[]
-  auditLogs          AuditLog[]
+  accounts          Account[]
+  sessions          Session[]
+  organizationUsers OrganizationUser[]
+  documents         Document[]
+  auditLogs         AuditLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -138,50 +138,50 @@ model VerificationToken {
 }
 
 model Organization {
-  id              String             @id @default(cuid())
-  name            String
-  type            OrganizationType   @default(STUDIO_MEDICO)
-  vatNumber       String?
-  fiscalCode      String?
-  address         String?
-  city            String?
-  province        String?
-  postalCode      String?
-  country         String             @default("IT")
-  phone           String?
-  email           String?
-  pec             String?
-  website         String?
-  
-  timezone        String             @default("Europe/Rome")
-  notificationsEnabled Boolean        @default(true)
-  
-  users               OrganizationUser[]
-  structures          Structure[]
-  people              Person[]
-  roleTemplates       RoleTemplate[]
-  deadlineTemplates   DeadlineTemplate[]
-  deadlineInstances   DeadlineInstance[]
-  documents           Document[]
-  auditLogs           AuditLog[]
-  
+  id         String           @id @default(cuid())
+  name       String
+  type       OrganizationType @default(STUDIO_MEDICO)
+  vatNumber  String?
+  fiscalCode String?
+  address    String?
+  city       String?
+  province   String?
+  postalCode String?
+  country    String           @default("IT")
+  phone      String?
+  email      String?
+  pec        String?
+  website    String?
+
+  timezone             String  @default("Europe/Rome")
+  notificationsEnabled Boolean @default(true)
+
+  users             OrganizationUser[]
+  structures        Structure[]
+  people            Person[]
+  roleTemplates     RoleTemplate[]
+  deadlineTemplates DeadlineTemplate[]
+  deadlineInstances DeadlineInstance[]
+  documents         Document[]
+  auditLogs         AuditLog[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model OrganizationUser {
-  id             String       @id @default(cuid())
+  id             String      @id @default(cuid())
   organizationId String
-  userId         String
-  role           OrgUserRole  @default(MEMBER)
-  
+  userId         String      @unique // MODIFICATO: Un utente può avere solo 1 organizzazione
+  role           OrgUserRole @default(OWNER) // Se 1 user = 1 org, è sempre OWNER
+
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  @@unique([organizationId, userId])
+
+  @@index([userId])
 }
 
 model Structure {
@@ -197,20 +197,20 @@ model Structure {
   email          String?
   notes          String?
   active         Boolean @default(true)
-  
-  organization      Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   personStructures  PersonStructure[]
   roleAssignments   RoleAssignment[]
   deadlineInstances DeadlineInstance[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([organizationId])
 }
 
 model Person {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String
   firstName      String
   lastName       String
@@ -220,16 +220,16 @@ model Person {
   hireDate       DateTime?
   birthDate      DateTime?
   notes          String?
-  active         Boolean  @default(true)
-  
-  organization      Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  active         Boolean   @default(true)
+
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   structures        PersonStructure[]
   roleAssignments   RoleAssignment[]
   deadlineInstances DeadlineInstance[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([organizationId])
 }
 
@@ -240,24 +240,24 @@ model PersonStructure {
   startDate   DateTime?
   endDate     DateTime?
   isPrimary   Boolean   @default(false)
-  
+
   person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
   structure Structure @relation(fields: [structureId], references: [id], onDelete: Cascade)
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@unique([personId, structureId])
 }
 
 model RoleTemplate {
-  id             String             @id @default(cuid())
-  ownerType      TemplateOwnerType  @default(GLOBAL)
+  id             String            @id @default(cuid())
+  ownerType      TemplateOwnerType @default(GLOBAL)
   organizationId String?
   key            String
   label          String
   description    String?
-  active         Boolean            @default(true)
+  active         Boolean           @default(true)
 
   organization      Organization?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   deadlineTemplates DeadlineTemplate[]
@@ -271,8 +271,8 @@ model RoleTemplate {
 }
 
 model DeadlineTemplate {
-  id                   String             @id @default(cuid())
-  ownerType            TemplateOwnerType  @default(GLOBAL)
+  id                   String            @id @default(cuid())
+  ownerType            TemplateOwnerType @default(GLOBAL)
   organizationId       String?
   scope                DeadlineScope
   complianceType       ComplianceType
@@ -280,32 +280,32 @@ model DeadlineTemplate {
   description          String?
   recurrenceUnit       RecurrenceUnit
   recurrenceEvery      Int
-  firstDueOffsetDays   Int                @default(0)
+  firstDueOffsetDays   Int               @default(0)
   anchor               AnchorType
   roleTemplateId       String?
   requiredDocumentName String?
-  active               Boolean            @default(true)
-  status               String             @default("ACTIVE")
+  active               Boolean           @default(true)
+  status               String            @default("ACTIVE")
   legalReference       String?
   sourceUrl            String?
   effectiveFrom        DateTime?
   effectiveTo          DateTime?
-  country              String?            @default("IT")
+  country              String?           @default("IT")
   notes                String?
-  
+
   organization Organization?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   roleTemplate RoleTemplate?      @relation(fields: [roleTemplateId], references: [id])
   instances    DeadlineInstance[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([ownerType, active, scope])
   @@index([organizationId])
 }
 
 model DeadlineInstance {
-  id                   String          @id @default(cuid())
+  id                   String         @id @default(cuid())
   organizationId       String
   templateId           String?
   structureId          String?
@@ -313,21 +313,21 @@ model DeadlineInstance {
   roleAssignmentId     String?
   title                String
   dueDate              DateTime
-  status               DeadlineStatus  @default(PENDING)
+  status               DeadlineStatus @default(PENDING)
   completedAt          DateTime?
   completionDocumentId String?
   notes                String?
-  
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   template       DeadlineTemplate? @relation(fields: [templateId], references: [id])
-  structure      Structure?      @relation(fields: [structureId], references: [id])
-  person         Person?         @relation(fields: [personId], references: [id])
-  roleAssignment RoleAssignment? @relation(fields: [roleAssignmentId], references: [id])
+  structure      Structure?        @relation(fields: [structureId], references: [id])
+  person         Person?           @relation(fields: [personId], references: [id])
+  roleAssignment RoleAssignment?   @relation(fields: [roleAssignmentId], references: [id])
   notifications  Notification[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([organizationId, dueDate])
   @@index([status, dueDate])
   @@index([templateId])
@@ -340,15 +340,15 @@ model RoleAssignment {
   structureId    String?
   startDate      DateTime?
   endDate        DateTime?
-  
+
   person       Person             @relation(fields: [personId], references: [id], onDelete: Cascade)
   roleTemplate RoleTemplate       @relation(fields: [roleTemplateId], references: [id])
   structure    Structure?         @relation(fields: [structureId], references: [id])
   deadlines    DeadlineInstance[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([personId])
   @@index([roleTemplateId])
 }
@@ -363,13 +363,13 @@ model Document {
   fileSize       Int?
   storagePath    String
   uploadedById   String?
-  
+
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   uploadedBy   User?        @relation(fields: [uploadedById], references: [id])
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([organizationId, ownerType, ownerId])
 }
 
@@ -381,18 +381,18 @@ model Notification {
   scheduledAt DateTime
   sentAt      DateTime?
   status      NotificationStatus @default(PENDING)
-  
+
   deadline DeadlineInstance @relation(fields: [deadlineId], references: [id], onDelete: Cascade)
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([status, scheduledAt])
   @@index([deadlineId])
 }
 
 model AuditLog {
-  id             String   @id @default(cuid())
+  id             String  @id @default(cuid())
   organizationId String?
   userId         String?
   action         String
@@ -400,12 +400,12 @@ model AuditLog {
   entityId       String?
   ip             String?
   metadata       Json?
-  
+
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user         User?         @relation(fields: [userId], references: [id])
-  
+
   createdAt DateTime @default(now())
-  
+
   @@index([organizationId, createdAt])
   @@index([userId, createdAt])
 }

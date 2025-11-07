@@ -95,7 +95,15 @@ export default function LoginPage() {
 
         setError(errorMessages[result.error] || result.error);
       } else if (result?.ok) {
-        router.push("/admin");
+        // Verifica se l'utente è SuperAdmin per reindirizzare correttamente
+        const sessionCheck = await fetch("/api/auth/session");
+        const sessionData = await sessionCheck.json();
+
+        if (sessionData?.user?.isSuperAdmin) {
+          router.push("/admin");
+        } else {
+          router.push("/dashboard");
+        }
         router.refresh();
       }
     } catch (err) {

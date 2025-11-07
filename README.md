@@ -6,7 +6,9 @@ Sistema completo di gestione scadenze e adempimenti per studi medici e dentistic
 
 - **Multi-tenant**: Gestione di più organizzazioni con isolamento completo dei dati
 - **RBAC**: Ruoli OWNER, ADMIN, MEMBER con permessi granulari
-- **Catalogo Scadenze Italia**: Template GLOBAL preconfigurati per:
+- **Gestione Strutture**: Creazione e gestione di strutture operative multiple
+- **Gestione Personale**: Anagrafica completa con validazione codice fiscale italiano
+- **Catalogo Scadenze Italia**: 35+ template GLOBAL preconfigurati per:
   - Sicurezza sul lavoro (D.Lgs. 81/08)
   - Radioprotezione (D.Lgs. 101/2020 e correttivi)
   - Rifiuti sanitari (DPR 254/2003, RENTRI)
@@ -17,23 +19,24 @@ Sistema completo di gestione scadenze e adempimenti per studi medici e dentistic
 - **Dashboard KPI**: Panoramica scadenze con grafici e statistiche
 - **Gestione Documenti**: Upload e storage documenti di compliance
 - **Audit Log**: Tracciamento completo delle azioni critiche
+- **Email Verification**: Sistema di verifica email con resend
 
 ## 🛠️ Stack Tecnologico
 
-- **Framework**: Next.js 14+ (App Router, RSC)
+- **Framework**: Next.js 16 (App Router, React Server Components)
 - **Language**: TypeScript
 - **UI**: Tailwind CSS + shadcn/ui (design Stripe/Linear style)
 - **Forms**: React Hook Form + Zod
-- **Database**: PostgreSQL + Prisma ORM
+- **Database**: SQLite (dev) / PostgreSQL (prod) + Prisma ORM
 - **Auth**: Auth.js (NextAuth) con Credentials
+- **Email**: Resend (prod) / MailHog (dev)
 - **Background Jobs**: node-cron (dev) / Vercel Cron (prod)
 - **Testing**: Jest (unit) + Playwright (e2e)
 
 ## 📋 Prerequisiti
 
 - Node.js 18+ e npm
-- Docker e Docker Compose (per PostgreSQL)
-- PostgreSQL 14+ (se non usi Docker)
+- Docker e Docker Compose (per MailHog in sviluppo)
 
 ## 🚀 Installazione e Setup
 
@@ -44,20 +47,35 @@ cd studio-compliance-manager
 npm install
 ```
 
-### 2. Avvia PostgreSQL con Docker
+### 2. Avvia MailHog con Docker (per email in sviluppo)
 
 ```bash
 docker-compose up -d
 ```
 
+MailHog sarà disponibile su:
+
+- SMTP: `localhost:1025`
+- Web UI: `http://localhost:8025`
+
 ### 3. Configura variabili d'ambiente
 
-Il file `.env` è già configurato per lo sviluppo locale. Modifica se necessario:
+Il file `.env` è già configurato per lo sviluppo locale. Verifica la configurazione:
 
 ```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/studio_compliance?schema=public"
+# Database (SQLite in dev, usa file locale)
+DATABASE_URL="file:./dev.db"
+
+# Auth
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-secret-key-change-in-production"
+
+# Email (MailHog in dev)
+EMAIL_FROM="noreply@studiocompliance.local"
+EMAIL_SERVER_HOST="localhost"
+EMAIL_SERVER_PORT="1025"
+EMAIL_SERVER_USER=""
+EMAIL_SERVER_PASSWORD=""
 ```
 
 ### 4. Inizializza il database
@@ -81,13 +99,19 @@ npm run dev
 
 Apri [http://localhost:3000](http://localhost:3000) nel browser.
 
+### 6. Testa l'invio email
+
+Le email inviate dall'applicazione appariranno nella UI di MailHog su `http://localhost:8025`.
+
 ## 🔐 Credenziali Demo
 
 ### Super Admin (gestione template GLOBAL)
+
 - Email: `admin@studiocompliance.it`
 - Password: `Admin123!`
 
 ### Demo User (Studio Dentistico Rossi)
+
 - Email: `demo@studiodentistico.it`
 - Password: `Demo123!`
 
@@ -139,34 +163,50 @@ studio-compliance-manager/
 ## 📊 Funzionalità Implementate
 
 ### ✅ Autenticazione e Onboarding
+
 - Login con credenziali
 - Registrazione nuova organizzazione
-- Verifica email (placeholder)
+- Verifica email con token e resend
+- Gestione account status (PENDING_VERIFICATION, ACTIVE, SUSPENDED)
+- Messaggi di errore dettagliati per ogni stato
 - Reset password (placeholder)
 
 ### ✅ Dashboard
+
 - KPI scadenze (scadute, 30/60/90 giorni)
 - Lista prossime scadenze
 - Grafici e statistiche
+- Visualizzazione basata su strutture
 
 ### ✅ Gestione Strutture
-- CRUD strutture operative
-- Associazione persone a strutture
+
+- CRUD strutture operative complete
+- Associazione persone a strutture (con tab dedicato)
+- Assegnazione multipla a strutture
 - Scadenze per struttura
+- Gestione struttura principale per persona
 
 ### ✅ Gestione Persone
+
 - CRUD persone (dipendenti/collaboratori)
+- **Validazione codice fiscale italiano** (formato e check character)
+- **Controllo unicità codice fiscale per organizzazione**
+- Normalizzazione automatica codice fiscale (uppercase, trim)
 - Associazione a strutture multiple
+- Assegnazione da personale esistente
 - Assegnazione ruoli
 - Tab scadenze personali
+- Campi completi: nome, cognome, email, telefono, date assunzione/nascita, note
 
 ### ✅ Gestione Ruoli
+
 - Template ruoli GLOBAL (preconfigurati)
 - Template ruoli ORG (personalizzati)
 - Assegnazione ruoli a persone
 - Generazione automatica scadenze
 
 ### ✅ Catalogo Template Scadenze
+
 - 35+ template GLOBAL Italia preconfigurati
 - Metadati normativi (legalReference, sourceUrl)
 - Versioning e changelog
@@ -174,6 +214,7 @@ studio-compliance-manager/
 - Configurabilità per organizzazione
 
 ### ✅ Gestione Scadenze
+
 - Generazione automatica da template
 - Stati: PENDING, DONE, OVERDUE, CANCELLED
 - Completamento con upload documento
@@ -182,15 +223,24 @@ studio-compliance-manager/
 - Export ICS calendario
 
 ### ✅ Notifiche
+
 - Email reminder a 90/60/30/7/1 giorni
 - Tracking invii (PENDING/SENT/FAILED)
 - Job cron giornaliero
+- Sistema email con Resend (prod) / MailHog (dev)
 
 ### ✅ Admin Panel
+
 - Gestione membri organizzazione
 - Promozione/demozione admin
 - SuperAdmin: gestione template GLOBAL
 - Audit log
+
+### ✅ Profilo Utente
+
+- Gestione informazioni personali
+- Cambio password
+- Visualizzazione stato account
 
 ## 🔧 Script Disponibili
 
@@ -235,10 +285,12 @@ Crea `vercel.json`:
 
 ```json
 {
-  "crons": [{
-    "path": "/api/notifications/dispatch",
-    "schedule": "0 6 * * *"
-  }]
+  "crons": [
+    {
+      "path": "/api/notifications/dispatch",
+      "schedule": "0 6 * * *"
+    }
+  ]
 }
 ```
 
@@ -247,6 +299,7 @@ Crea `vercel.json`:
 Il sistema include 35+ template preconfigurati per:
 
 ### Sicurezza sul Lavoro (D.Lgs. 81/08)
+
 - Formazione lavoratori (quinquennale)
 - Formazione preposti (biennale)
 - Formazione dirigenti (quinquennale)
@@ -259,6 +312,7 @@ Il sistema include 35+ template preconfigurati per:
 - Estintori controlli
 
 ### Radioprotezione (D.Lgs. 101/2020)
+
 - Sorveglianza fisica ER (annuale)
 - Controlli qualità RX
 - Notifica pratica radiologica
@@ -269,11 +323,13 @@ Il sistema include 35+ template preconfigurati per:
 - Dosimetria personale
 
 ### Rifiuti Sanitari
+
 - Registro carico/scarico (5 giorni)
 - Deposito temporaneo
 - RENTRI iscrizione
 
 ### Altri Adempimenti
+
 - BLSD/DAE retraining
 - Sorveglianza sanitaria
 - Autoclave manutenzione
@@ -282,6 +338,7 @@ Il sistema include 35+ template preconfigurati per:
 - RC professionale
 
 Tutti i template includono:
+
 - Riferimenti normativi
 - Link fonti ufficiali
 - Periodicità configurabile
@@ -289,10 +346,13 @@ Tutti i template includono:
 
 ## 🔒 Sicurezza e Compliance
 
-- **Multi-tenancy**: Scoping rigoroso per organizationId
-- **RBAC**: Controllo accessi granulare
+- **Multi-tenancy**: Scoping rigoroso per organizationId in tutte le query
+- **RBAC**: Controllo accessi granulare (OWNER, ADMIN, MEMBER)
 - **Password**: Hash con bcrypt
 - **Session**: JWT con NextAuth
+- **Email Verification**: Verifica email obbligatoria con token sicuri
+- **Fiscal Code Validation**: Validazione completa codice fiscale italiano con check character
+- **Data Normalization**: Normalizzazione automatica dati (es. codice fiscale uppercase)
 - **Rate Limiting**: Implementabile con Upstash
 - **GDPR**: Soft-delete, audit log, consensi
 - **Audit Trail**: Log completo azioni critiche
@@ -312,6 +372,7 @@ npm run test:e2e
 ```
 
 Flusso E2E coperto:
+
 1. Signup → Onboarding
 2. Crea Struttura
 3. Crea Persona
@@ -324,14 +385,42 @@ Flusso E2E coperto:
 
 ### API Endpoints
 
+#### Autenticazione
+
 - `POST /api/auth/[...nextauth]` - NextAuth handlers
+- `GET /api/auth/verify-email` - Verifica email con token
+- `POST /api/auth/resend-verification` - Reinvia email di verifica
+
+#### Organizzazioni e Utenti
+
 - `GET/POST /api/organizations` - Gestione organizzazioni
-- `GET/POST/PATCH/DELETE /api/structures` - CRUD strutture
-- `GET/POST/PATCH/DELETE /api/people` - CRUD persone
+- `GET/PATCH /api/user/profile` - Profilo utente
+- `POST /api/user/change-password` - Cambio password
+
+#### Strutture
+
+- `GET/POST /api/structures` - Lista e creazione strutture
+- `GET/PATCH/DELETE /api/structures/[id]` - Gestione singola struttura
+- `GET/POST /api/structures/[id]/people` - Persone associate a struttura
+
+#### Persone
+
+- `GET/POST /api/people` - Lista e creazione persone
+- `POST /api/people/check-fiscal-code` - Verifica unicità codice fiscale
+- `GET/PATCH/DELETE /api/people/[id]` - Gestione singola persona
+
+#### Ruoli
+
 - `GET/POST /api/roles/templates` - Template ruoli
 - `GET/POST/PATCH/DELETE /api/roles/assignments` - Assegnazioni ruoli
+
+#### Scadenze
+
 - `GET/POST/PATCH /api/deadlines/templates` - Template scadenze
 - `GET/POST/PATCH /api/deadlines` - Istanze scadenze
+
+#### Altro
+
 - `POST /api/documents` - Upload documenti
 - `POST /api/notifications/dispatch` - Dispatch notifiche (cron)
 - `GET /api/ics` - Export calendario ICS
@@ -361,6 +450,7 @@ ISC
 ## 🆘 Supporto
 
 Per domande o problemi:
+
 - Apri una Issue su GitHub
 - Consulta la documentazione Prisma/Next.js
 - Verifica i log con `npm run dev`

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,20 +12,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Building2, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
-export default function OnboardingPage() {
+export default function NewStructurePage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
+    code: "",
     address: "",
     city: "",
     province: "",
     postalCode: "",
-    country: "Italia",
     phone: "",
     email: "",
-    vatNumber: "",
-    fiscalCode: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,42 +34,60 @@ export default function OnboardingPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/organizations", {
+      const response = await fetch("/api/structures", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
       if (!response.ok) {
-        throw new Error("Errore nella creazione dell'organizzazione");
+        const error = await response.json();
+        throw new Error(
+          error.error || "Errore nella creazione della struttura",
+        );
       }
 
-      // Aspetta un attimo per assicurarsi che il database sia aggiornato
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      const structure = await response.json();
 
-      // Usa window.location.href per un hard redirect che forza il refresh
-      window.location.href = "/dashboard";
+      // Reindirizza alla nuova struttura
+      router.push(`/structures/${structure.id}`);
     } catch (error) {
       console.error("Errore:", error);
-      alert("Errore nella creazione dell'organizzazione");
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Errore nella creazione della struttura",
+      );
       setLoading(false);
     }
   };
 
   return (
     <div className="container mx-auto p-6">
+      <div className="mb-6">
+        <Link
+          href="/structures"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Torna alle strutture
+        </Link>
+      </div>
+
       <Card className="w-full max-w-2xl mx-auto">
         <CardHeader>
-          <CardTitle>Benvenuto!</CardTitle>
+          <div className="flex items-center gap-2">
+            <Building2 className="h-6 w-6 text-purple-600" />
+            <CardTitle>Crea Nuova Struttura</CardTitle>
+          </div>
           <CardDescription>
-            Crea la tua prima organizzazione per iniziare a gestire scadenze e
-            adempimenti
+            Aggiungi una nuova struttura alla tua organizzazione
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="name">Nome Organizzazione *</Label>
+              <Label htmlFor="name">Nome Struttura *</Label>
               <Input
                 id="name"
                 required
@@ -75,33 +95,20 @@ export default function OnboardingPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
-                placeholder="Es: Studio Dentistico Rossi"
+                placeholder="Es: Sede Centrale"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="vatNumber">Partita IVA</Label>
-                <Input
-                  id="vatNumber"
-                  value={formData.vatNumber}
-                  onChange={(e) =>
-                    setFormData({ ...formData, vatNumber: e.target.value })
-                  }
-                  placeholder="IT12345678901"
-                />
-              </div>
-              <div>
-                <Label htmlFor="fiscalCode">Codice Fiscale</Label>
-                <Input
-                  id="fiscalCode"
-                  value={formData.fiscalCode}
-                  onChange={(e) =>
-                    setFormData({ ...formData, fiscalCode: e.target.value })
-                  }
-                  placeholder="RSSMRA80A01H501U"
-                />
-              </div>
+            <div>
+              <Label htmlFor="code">Codice Struttura</Label>
+              <Input
+                id="code"
+                value={formData.code}
+                onChange={(e) =>
+                  setFormData({ ...formData, code: e.target.value })
+                }
+                placeholder="Es: SEDE01"
+              />
             </div>
 
             <div>
@@ -175,14 +182,22 @@ export default function OnboardingPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
                   }
-                  placeholder="info@studio.it"
+                  placeholder="info@struttura.it"
                 />
               </div>
             </div>
 
             <div className="flex justify-end gap-4 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push("/structures")}
+                disabled={loading}
+              >
+                Annulla
+              </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? "Creazione in corso..." : "Crea Organizzazione"}
+                {loading ? "Creazione in corso..." : "Crea Struttura"}
               </Button>
             </div>
           </form>
