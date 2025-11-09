@@ -64,54 +64,83 @@
   .card-gradient {
     @apply bg-gradient-to-br from-white to-purple-50/30 backdrop-blur-sm;
   }
-  
+
   .card-hover {
     @apply transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:-translate-y-1;
   }
-  
+
   .stat-card {
     @apply relative overflow-hidden;
   }
-  
+
   .stat-card::before {
-    content: '';
+    content: "";
     @apply absolute inset-0 bg-gradient-to-br from-purple-500/5 to-blue-500/5 opacity-0 transition-opacity duration-300;
   }
-  
+
   .stat-card:hover::before {
     @apply opacity-100;
   }
-  
+
   .badge-modern {
     @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm;
   }
-  
+
   .badge-success {
     @apply badge-modern bg-emerald-100 text-emerald-700 border border-emerald-200;
   }
-  
+
   .badge-warning {
     @apply badge-modern bg-amber-100 text-amber-700 border border-amber-200;
   }
-  
+
   .badge-error {
     @apply badge-modern bg-rose-100 text-rose-700 border border-rose-200;
   }
-  
+
   .badge-info {
     @apply badge-modern bg-blue-100 text-blue-700 border border-blue-200;
   }
-  
+
   .badge-neutral {
     @apply badge-modern bg-slate-100 text-slate-700 border border-slate-200;
   }
-  
+
   .section-header {
     @apply relative pb-4 mb-6;
   }
-  
+
   .section-header::after {
-    content: '';
+    content: "";
     @apply absolute bottom-0 left-0 w-20 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full;
   }
+}
+
+/* Stili per il calendario DatePicker */
+.rdp {
+  --rdp-cell-size: 2.25rem;
+}
+
+.rdp-table {
+  max-width: calc(var(--rdp-cell-size) * 7);
+  margin: 0 auto;
+}
+
+.rdp-head_cell {
+  width: var(--rdp-cell-size);
+  height: var(--rdp-cell-size);
+  text-align: center;
+  vertical-align: middle;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rdp-cell {
+  width: var(--rdp-cell-size);
+  height: var(--rdp-cell-size);
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }

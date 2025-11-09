@@ -82,3 +82,57 @@ export async function GET() {
     );
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+    }
+
+    const data = await request.json();
+
+    // Trova l'organizzazione dell'utente
+    const orgUser = await prisma.organizationUser.findUnique({
+      where: {
+        userId: session.user.id,
+      },
+    });
+
+    if (!orgUser) {
+      return NextResponse.json(
+        { error: "Utente non associato a nessuna organizzazione" },
+        { status: 403 },
+      );
+    }
+
+    // Aggiorna l'organizzazione
+    const organization = await prisma.organization.update({
+      where: {
+        id: orgUser.organizationId,
+      },
+      data: {
+        name: data.name,
+        vatNumber: data.vatNumber || null,
+        fiscalCode: data.fiscalCode || null,
+        address: data.address || null,
+        city: data.city || null,
+        province: data.province || null,
+        postalCode: data.postalCode || null,
+        country: data.country || "IT",
+        phone: data.phone || null,
+        email: data.email || null,
+        pec: data.pec || null,
+        website: data.website || null,
+      },
+    });
+
+    return NextResponse.json(organization);
+  } catch (error) {
+    console.error("Errore aggiornamento organizzazione:", error);
+    return NextResponse.json(
+      { error: "Errore nell'aggiornamento dell'organizzazione" },
+      { status: 500 },
+    );
+  }
+}

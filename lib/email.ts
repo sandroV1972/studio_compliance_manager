@@ -154,3 +154,100 @@ Ti aspettiamo!
 
   console.log(`📧 Email di approvazione inviata a: ${to}`);
 }
+
+// Funzione helper per inviare email di reminder scadenza
+export async function sendDeadlineReminderEmail(
+  to: string,
+  recipientName: string,
+  deadlineTitle: string,
+  dueDate: Date,
+  daysBefore: number,
+  customMessage?: string,
+) {
+  const formattedDate = dueDate.toLocaleDateString("it-IT", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+
+  const daysText = daysBefore === 1 ? "domani" : `tra ${daysBefore} giorni`;
+
+  const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #f59e0b; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+          .deadline-box { background: white; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px; }
+          .deadline-title { font-size: 18px; font-weight: bold; color: #1f2937; margin-bottom: 10px; }
+          .deadline-date { font-size: 16px; color: #f59e0b; font-weight: bold; }
+          .alert-icon { font-size: 48px; text-align: center; margin: 20px 0; }
+          .footer { text-align: center; margin-top: 20px; color: #6b7280; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>⏰ Promemoria Scadenza</h1>
+          </div>
+          <div class="content">
+            <h2>Ciao ${recipientName}! 👋</h2>
+            <p>Ti ricordiamo che hai una scadenza in arrivo.</p>
+
+            <div class="deadline-box">
+              <div class="deadline-title">📋 ${deadlineTitle}</div>
+              <div class="deadline-date">📅 Scadenza: ${formattedDate}</div>
+              <p style="margin-top: 10px; color: #6b7280;">
+                ⚠️ La scadenza è prevista ${daysText}
+              </p>
+            </div>
+
+            ${customMessage ? `<p style="background: #fef3c7; padding: 15px; border-radius: 4px; border-left: 4px solid #f59e0b;"><strong>Nota:</strong> ${customMessage}</p>` : ""}
+
+            <p>Assicurati di completare tutte le attività necessarie entro la data prevista.</p>
+
+            <p style="margin-top: 30px; font-size: 14px; color: #6b7280;">
+              Accedi a <strong>Studio Compliance Manager</strong> per gestire le tue scadenze.
+            </p>
+          </div>
+          <div class="footer">
+            <p>© ${new Date().getFullYear()} Studio Compliance Manager - Sistema di gestione adempimenti</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const emailText = `
+Ciao ${recipientName}!
+
+Ti ricordiamo che hai una scadenza in arrivo.
+
+📋 ${deadlineTitle}
+📅 Scadenza: ${formattedDate}
+⚠️ La scadenza è prevista ${daysText}
+
+${customMessage ? `Nota: ${customMessage}` : ""}
+
+Assicurati di completare tutte le attività necessarie entro la data prevista.
+
+---
+© ${new Date().getFullYear()} Studio Compliance Manager
+  `;
+
+  await emailTransporter.sendMail({
+    from: process.env.EMAIL_FROM || "noreply@studiocompliance.local",
+    to,
+    subject: `⏰ Promemoria: ${deadlineTitle} - Scadenza ${daysText}`,
+    text: emailText,
+    html: emailHtml,
+  });
+
+  console.log(
+    `📧 Email reminder inviata a: ${to} per scadenza: ${deadlineTitle}`,
+  );
+}

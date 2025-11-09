@@ -27,7 +27,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { title, dueDate, personId, structureId, notes } = body;
+    const { title, dueDate, personId, structureId, notes, reminders } = body;
 
     // Validazioni
     if (!title?.trim()) {
@@ -92,7 +92,7 @@ export async function POST(
       }
     }
 
-    // Crea la deadline instance
+    // Crea la deadline instance con i reminders
     const deadline = await prisma.deadlineInstance.create({
       data: {
         organizationId: organizationId,
@@ -103,6 +103,16 @@ export async function POST(
         structureId: structureId || null,
         notes: notes?.trim() || null,
         // templateId è null per scadenze manuali
+        // Crea i reminders se presenti
+        reminders: {
+          create:
+            reminders?.map(
+              (reminder: { daysBefore: number; message?: string }) => ({
+                daysBefore: reminder.daysBefore,
+                message: reminder.message?.trim() || null,
+              }),
+            ) || [],
+        },
       },
       include: {
         person: {
@@ -118,6 +128,7 @@ export async function POST(
             name: true,
           },
         },
+        reminders: true,
       },
     });
 
@@ -162,6 +173,8 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const month = searchParams.get("month");
     const year = searchParams.get("year");
+    const structureId = searchParams.get("structureId");
+    const requiresDocument = searchParams.get("requiresDocument");
 
     // Verifica che l'utente abbia accesso a questa organizzazione
     const orgUser = await prisma.organizationUser.findFirst({
@@ -188,11 +201,31 @@ export async function GET(
       };
     }
 
+    // Filtro per struttura
+    let structureFilter = {};
+    if (structureId) {
+      structureFilter = { structureId };
+    }
+
+    // Filtro per scadenze che richiedono documenti
+    let documentFilter = {};
+    if (requiresDocument === "true") {
+      documentFilter = {
+        template: {
+          requiredDocumentName: {
+            not: null,
+          },
+        },
+      };
+    }
+
     // Recupera le scadenze dell'organizzazione
     const deadlines = await prisma.deadlineInstance.findMany({
       where: {
         organizationId: id,
         ...dateFilter,
+        ...structureFilter,
+        ...documentFilter,
       },
       include: {
         person: {

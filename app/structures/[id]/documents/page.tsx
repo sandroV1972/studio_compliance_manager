@@ -1,44 +1,63 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import DocumentsList from "@/components/documents/documents-list";
+
+interface Structure {
+  id: string;
+  name: string;
+  organizationId: string;
+}
 
 export default function DocumentsPage() {
-  return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Documenti</h2>
-          <p className="text-muted-foreground">
-            Gestisci i documenti dell'organizzazione
-          </p>
-        </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Carica Documento
-        </Button>
-      </div>
+  const params = useParams();
+  const structureId = params.id as string;
+  const [structure, setStructure] = useState<Structure | null>(null);
+  const [loading, setLoading] = useState(true);
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Lista Documenti</CardTitle>
-          <CardDescription>
-            Visualizza e gestisci tutti i documenti
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-center text-muted-foreground py-8">
-            Nessun documento trovato
-          </p>
-        </CardContent>
-      </Card>
+  useEffect(() => {
+    loadStructure();
+  }, [structureId]);
+
+  const loadStructure = async () => {
+    try {
+      const response = await fetch(`/api/structures/${structureId}`);
+      if (!response.ok) throw new Error("Errore caricamento struttura");
+      const data = await response.json();
+      setStructure(data);
+    } catch (error) {
+      console.error("Errore caricamento struttura:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!structure) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center text-red-600">Struttura non trovata</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-6">
+      <DocumentsList
+        organizationId={structure.organizationId}
+        structureId={structure.id}
+        structureName={structure.name}
+      />
     </div>
   );
 }

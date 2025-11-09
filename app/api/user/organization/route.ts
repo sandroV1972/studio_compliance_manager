@@ -45,6 +45,18 @@ export async function GET() {
     return NextResponse.json({
       id: orgUser.organization.id,
       name: orgUser.organization.name,
+      type: orgUser.organization.type,
+      vatNumber: orgUser.organization.vatNumber,
+      fiscalCode: orgUser.organization.fiscalCode,
+      address: orgUser.organization.address,
+      city: orgUser.organization.city,
+      province: orgUser.organization.province,
+      postalCode: orgUser.organization.postalCode,
+      country: orgUser.organization.country,
+      phone: orgUser.organization.phone,
+      email: orgUser.organization.email,
+      pec: orgUser.organization.pec,
+      website: orgUser.organization.website,
       structures: orgUser.organization.structures,
     });
   } catch (error) {

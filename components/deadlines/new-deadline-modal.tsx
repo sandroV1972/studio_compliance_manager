@@ -22,7 +22,11 @@ import {
   AlertCircle,
   User,
   Building2,
+  Bell,
+  Plus,
+  X,
 } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
 
 interface Person {
   id: string;
@@ -33,6 +37,17 @@ interface Person {
 interface Structure {
   id: string;
   name: string;
+}
+
+interface DeadlineTemplate {
+  id: string;
+  title: string;
+  complianceType: string;
+  description: string | null;
+  scope: string;
+  recurrenceUnit: string;
+  recurrenceEvery: number;
+  firstDueOffsetDays: number;
 }
 
 interface NewDeadlineModalProps {
@@ -50,7 +65,9 @@ export function NewDeadlineModal({
   const [isSaving, setIsSaving] = useState(false);
   const [people, setPeople] = useState<Person[]>([]);
   const [structures, setStructures] = useState<Structure[]>([]);
+  const [templates, setTemplates] = useState<DeadlineTemplate[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [activeTab, setActiveTab] = useState("manual");
 
   const [formData, setFormData] = useState({
     title: "",
@@ -58,9 +75,24 @@ export function NewDeadlineModal({
     scope: "PERSON",
     personId: "",
     structureId: "",
-    dueDate: "",
     notes: "",
   });
+  const [dueDate, setDueDate] = useState<Date | undefined>();
+  const [reminders, setReminders] = useState<
+    { daysBefore: number; message?: string }[]
+  >([]);
+
+  // Template form data
+  const [templateFormData, setTemplateFormData] = useState({
+    templateId: "",
+    targetType: "PERSON",
+    targetId: "",
+  });
+  const [templateStartDate, setTemplateStartDate] = useState<Date | undefined>(
+    new Date(),
+  );
+  const [templateEndDate, setTemplateEndDate] = useState<Date | undefined>();
+  const [hasEndDate, setHasEndDate] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -71,9 +103,10 @@ export function NewDeadlineModal({
   const loadPeopleAndStructures = async () => {
     setLoadingData(true);
     try {
-      const [peopleRes, structuresRes] = await Promise.all([
+      const [peopleRes, structuresRes, templatesRes] = await Promise.all([
         fetch(`/api/organizations/${organizationId}/people`),
         fetch(`/api/organizations/${organizationId}/structures`),
+        fetch(`/api/organizations/${organizationId}/deadline-templates`),
       ]);
 
       if (peopleRes.ok) {
@@ -85,31 +118,16 @@ export function NewDeadlineModal({
         const structuresData = await structuresRes.json();
         setStructures(structuresData.structures || []);
       }
+
+      if (templatesRes.ok) {
+        const templatesData = await templatesRes.json();
+        setTemplates(templatesData.templates || []);
+      }
     } catch (error) {
       console.error("Errore caricamento dati:", error);
     } finally {
       setLoadingData(false);
     }
-  };
-
-  const formatDateInput = (value: string): string => {
-    const numbers = value.replace(/\D/g, "");
-    if (numbers.length <= 2) {
-      return numbers;
-    } else if (numbers.length <= 4) {
-      return `${numbers.slice(0, 2)}/${numbers.slice(2)}`;
-    } else {
-      return `${numbers.slice(0, 2)}/${numbers.slice(2, 4)}/${numbers.slice(4, 8)}`;
-    }
-  };
-
-  const convertDateToISO = (dateStr: string): string | null => {
-    if (!dateStr) return null;
-    const parts = dateStr.split("/");
-    if (parts.length !== 3) return null;
-    const [day, month, year] = parts;
-    if (!day || !month || !year) return null;
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -124,7 +142,7 @@ export function NewDeadlineModal({
         return;
       }
 
-      if (!formData.dueDate) {
+      if (!dueDate) {
         alert("La data di scadenza è obbligatoria");
         setIsSaving(false);
         return;
@@ -142,12 +160,7 @@ export function NewDeadlineModal({
         return;
       }
 
-      const dueDateISO = convertDateToISO(formData.dueDate);
-      if (!dueDateISO) {
-        alert("Formato data non valido. Usa gg/mm/aaaa");
-        setIsSaving(false);
-        return;
-      }
+      const dueDateISO = dueDate.toISOString().split("T")[0];
 
       const response = await fetch(
         `/api/organizations/${organizationId}/deadlines`,
@@ -165,6 +178,8 @@ export function NewDeadlineModal({
             notes: formData.notes.trim() || null,
             // Informazioni aggiuntive per audit
             complianceType: formData.complianceType,
+            // Reminders
+            reminders: reminders,
           }),
         },
       );
@@ -185,11 +200,76 @@ export function NewDeadlineModal({
         scope: "PERSON",
         personId: "",
         structureId: "",
-        dueDate: "",
         notes: "",
       });
+      setDueDate(undefined);
+      setReminders([]);
     } catch (error) {
       console.error("Error creating deadline:", error);
+      alert(
+        error instanceof Error ? error.message : "Errore durante la creazione",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleTemplateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!templateStartDate) {
+      alert("Seleziona una data di inizio");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const response = await fetch(
+        `/api/organizations/${organizationId}/deadlines/generate-from-template`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            templateId: templateFormData.templateId,
+            targetType: templateFormData.targetType,
+            targetId:
+              templateFormData.targetType === "PERSON" ||
+              templateFormData.targetType === "STRUCTURE"
+                ? templateFormData.targetId
+                : null,
+            startDate: templateStartDate.toISOString(),
+            recurrenceEndDate:
+              hasEndDate && templateEndDate
+                ? templateEndDate.toISOString()
+                : null,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Errore nella generazione");
+      }
+
+      const data = await response.json();
+      router.refresh();
+      onClose();
+      alert(
+        `${data.count} scadenze create con successo! Le scadenze ricorrenti verranno generate automaticamente.`,
+      );
+
+      // Reset form
+      setTemplateFormData({
+        templateId: "",
+        targetType: "PERSON",
+        targetId: "",
+      });
+      setTemplateStartDate(new Date());
+      setTemplateEndDate(undefined);
+      setHasEndDate(false);
+    } catch (error) {
+      console.error("Error generating from template:", error);
       alert(
         error instanceof Error
           ? error.message
@@ -208,11 +288,34 @@ export function NewDeadlineModal({
         scope: "PERSON",
         personId: "",
         structureId: "",
-        dueDate: "",
         notes: "",
       });
+      setDueDate(undefined);
+      setReminders([]);
       onClose();
     }
+  };
+
+  const addReminder = () => {
+    setReminders([...reminders, { daysBefore: 7, message: "" }]);
+  };
+
+  const removeReminder = (index: number) => {
+    setReminders(reminders.filter((_, i) => i !== index));
+  };
+
+  const updateReminder = (
+    index: number,
+    field: "daysBefore" | "message",
+    value: number | string,
+  ) => {
+    const updated = [...reminders];
+    if (field === "daysBefore") {
+      updated[index].daysBefore = value as number;
+    } else {
+      updated[index].message = value as string;
+    }
+    setReminders(updated);
   };
 
   return (
@@ -226,12 +329,10 @@ export function NewDeadlineModal({
           <DialogDescription>Crea una nuova scadenza manuale</DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="manual" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="manual">Scadenza Manuale</TabsTrigger>
-            <TabsTrigger value="template" disabled>
-              Da Template (Presto)
-            </TabsTrigger>
+            <TabsTrigger value="template">Da Template</TabsTrigger>
           </TabsList>
 
           <TabsContent value="manual">
@@ -403,24 +504,91 @@ export function NewDeadlineModal({
                   <Label htmlFor="dueDate" className="text-sm font-medium">
                     Data Scadenza *
                   </Label>
-                  <Input
-                    id="dueDate"
-                    type="text"
-                    value={formData.dueDate}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        dueDate: formatDateInput(e.target.value),
-                      })
-                    }
-                    placeholder="gg/mm/aaaa"
-                    maxLength={10}
-                    required
-                    className="border-indigo-200 focus:border-indigo-500"
+                  <DatePicker
+                    date={dueDate}
+                    onDateChange={setDueDate}
+                    placeholder="Seleziona data di scadenza"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Formato: gg/mm/aaaa (es: 15/06/2025)
-                  </p>
+                </div>
+
+                {/* Reminders Section */}
+                <div className="space-y-3 border-t pt-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      <Bell className="h-4 w-4 text-indigo-500" />
+                      Promemoria (opzionale)
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addReminder}
+                      className="h-8"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Aggiungi Promemoria
+                    </Button>
+                  </div>
+
+                  {reminders.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">
+                      Nessun promemoria configurato. Aggiungi un promemoria per
+                      ricevere notifiche prima della scadenza.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {reminders.map((reminder, index) => (
+                        <div
+                          key={index}
+                          className="flex gap-2 items-start p-3 border rounded-md bg-gray-50"
+                        >
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Label className="text-xs">Giorni prima:</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                max="365"
+                                value={reminder.daysBefore}
+                                onChange={(e) =>
+                                  updateReminder(
+                                    index,
+                                    "daysBefore",
+                                    parseInt(e.target.value) || 1,
+                                  )
+                                }
+                                className="w-20 h-8"
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                {reminder.daysBefore === 1
+                                  ? "giorno"
+                                  : "giorni"}{" "}
+                                prima
+                              </span>
+                            </div>
+                            <Input
+                              type="text"
+                              placeholder="Messaggio personalizzato (opzionale)"
+                              value={reminder.message || ""}
+                              onChange={(e) =>
+                                updateReminder(index, "message", e.target.value)
+                              }
+                              className="text-sm"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeReminder(index)}
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -471,13 +639,268 @@ export function NewDeadlineModal({
           </TabsContent>
 
           <TabsContent value="template">
-            <div className="py-8 text-center text-muted-foreground">
-              <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <p>Funzionalità in arrivo</p>
-              <p className="text-sm">
-                Potrai creare scadenze basate sui template preconfigurati
-              </p>
-            </div>
+            {loadingData ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+                <span className="ml-2">Caricamento dati...</span>
+              </div>
+            ) : (
+              <form onSubmit={handleTemplateSubmit} className="space-y-6 mt-4">
+                {/* Selezione Template */}
+                <div className="space-y-2">
+                  <Label htmlFor="templateId" className="text-sm font-medium">
+                    Template *
+                  </Label>
+                  <select
+                    id="templateId"
+                    value={templateFormData.templateId}
+                    onChange={(e) =>
+                      setTemplateFormData({
+                        ...templateFormData,
+                        templateId: e.target.value,
+                      })
+                    }
+                    required
+                    className="w-full px-3 py-2 border border-indigo-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Seleziona un template...</option>
+                    {templates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.title} - Ogni {template.recurrenceEvery}{" "}
+                        {template.recurrenceUnit === "DAY"
+                          ? "giorni"
+                          : template.recurrenceUnit === "MONTH"
+                            ? "mesi"
+                            : "anni"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Tipo di Target */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Destinatari *</Label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="targetType"
+                        value="PERSON"
+                        checked={templateFormData.targetType === "PERSON"}
+                        onChange={(e) =>
+                          setTemplateFormData({
+                            ...templateFormData,
+                            targetType: e.target.value,
+                            targetId: "",
+                          })
+                        }
+                        className="w-4 h-4 text-indigo-600"
+                      />
+                      <span className="text-sm">Persona specifica</span>
+                    </label>
+
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="targetType"
+                        value="ALL_PEOPLE"
+                        checked={templateFormData.targetType === "ALL_PEOPLE"}
+                        onChange={(e) =>
+                          setTemplateFormData({
+                            ...templateFormData,
+                            targetType: e.target.value,
+                            targetId: "",
+                          })
+                        }
+                        className="w-4 h-4 text-indigo-600"
+                      />
+                      <span className="text-sm">Tutte le persone</span>
+                    </label>
+
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="targetType"
+                        value="STRUCTURE"
+                        checked={templateFormData.targetType === "STRUCTURE"}
+                        onChange={(e) =>
+                          setTemplateFormData({
+                            ...templateFormData,
+                            targetType: e.target.value,
+                            targetId: "",
+                          })
+                        }
+                        className="w-4 h-4 text-indigo-600"
+                      />
+                      <span className="text-sm">Struttura specifica</span>
+                    </label>
+
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="targetType"
+                        value="ALL_STRUCTURES"
+                        checked={
+                          templateFormData.targetType === "ALL_STRUCTURES"
+                        }
+                        onChange={(e) =>
+                          setTemplateFormData({
+                            ...templateFormData,
+                            targetType: e.target.value,
+                            targetId: "",
+                          })
+                        }
+                        className="w-4 h-4 text-indigo-600"
+                      />
+                      <span className="text-sm">Tutte le strutture</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Selezione Persona/Struttura Specifica */}
+                {templateFormData.targetType === "PERSON" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="personId" className="text-sm font-medium">
+                      Persona *
+                    </Label>
+                    <select
+                      id="personId"
+                      value={templateFormData.targetId}
+                      onChange={(e) =>
+                        setTemplateFormData({
+                          ...templateFormData,
+                          targetId: e.target.value,
+                        })
+                      }
+                      required
+                      className="w-full px-3 py-2 border border-indigo-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">Seleziona una persona...</option>
+                      {people.map((person) => (
+                        <option key={person.id} value={person.id}>
+                          {person.firstName} {person.lastName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {templateFormData.targetType === "STRUCTURE" && (
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="structureId"
+                      className="text-sm font-medium"
+                    >
+                      Struttura *
+                    </Label>
+                    <select
+                      id="structureId"
+                      value={templateFormData.targetId}
+                      onChange={(e) =>
+                        setTemplateFormData({
+                          ...templateFormData,
+                          targetId: e.target.value,
+                        })
+                      }
+                      required
+                      className="w-full px-3 py-2 border border-indigo-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">Seleziona una struttura...</option>
+                      {structures.map((structure) => (
+                        <option key={structure.id} value={structure.id}>
+                          {structure.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Data di Inizio */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Data di Inizio *
+                  </Label>
+                  <DatePicker
+                    date={templateStartDate}
+                    setDate={setTemplateStartDate}
+                  />
+                  <p className="text-xs text-gray-500">
+                    La prima scadenza sarà calcolata a partire da questa data
+                  </p>
+                </div>
+
+                {/* Data Fine Ricorrenza (Opzionale) */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="hasEndDate"
+                      checked={hasEndDate}
+                      onChange={(e) => {
+                        setHasEndDate(e.target.checked);
+                        if (!e.target.checked) {
+                          setTemplateEndDate(undefined);
+                        }
+                      }}
+                      className="w-4 h-4 text-indigo-600"
+                    />
+                    <Label
+                      htmlFor="hasEndDate"
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      Imposta data di fine ricorrenza
+                    </Label>
+                  </div>
+                  {hasEndDate && (
+                    <div className="space-y-2">
+                      <DatePicker
+                        date={templateEndDate}
+                        setDate={setTemplateEndDate}
+                      />
+                      <p className="text-xs text-gray-500">
+                        Le scadenze verranno generate fino a questa data
+                      </p>
+                    </div>
+                  )}
+                  {!hasEndDate && (
+                    <p className="text-xs text-gray-500">
+                      Le scadenze ricorrenti verranno generate automaticamente
+                      senza limite di tempo. Verranno sempre mantenute 3
+                      occorrenze future.
+                    </p>
+                  )}
+                </div>
+
+                {/* Buttons */}
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleClose}
+                    disabled={isSaving}
+                  >
+                    Annulla
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSaving}
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generazione...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Genera Scadenze
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </form>
+            )}
           </TabsContent>
         </Tabs>
       </DialogContent>

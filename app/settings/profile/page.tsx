@@ -9,7 +9,9 @@ import {
 } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
 import ProfileForm from "./ProfileForm";
-import { Building2, Mail, Phone, MapPin } from "lucide-react";
+import { Building2, Mail, Phone, MapPin, Edit } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -47,9 +49,19 @@ export default async function ProfilePage() {
         {/* Card Organizzazione */}
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-purple-600" />
-              <CardTitle>Organizzazione</CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-purple-600" />
+                <CardTitle>Organizzazione</CardTitle>
+              </div>
+              {orgUser?.organization && (
+                <Link href="/settings/organization/edit">
+                  <Button variant="outline" size="sm">
+                    <Edit className="h-4 w-4 mr-2" />
+                    Modifica
+                  </Button>
+                </Link>
+              )}
             </div>
             <CardDescription>
               Informazioni sulla tua organizzazione

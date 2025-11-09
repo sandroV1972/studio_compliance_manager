@@ -11,8 +11,18 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, AlertCircle, CheckCircle2, Clock, Plus } from "lucide-react";
+import {
+  Calendar,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  Plus,
+  Edit,
+  Settings,
+} from "lucide-react";
+import Link from "next/link";
 import { NewDeadlineModal } from "@/components/deadlines/new-deadline-modal";
+import EditDeadlineModal from "@/components/deadlines/edit-deadline-modal";
 
 interface Deadline {
   id: string;
@@ -30,6 +40,8 @@ export default function DeadlinesPage() {
   const [deadlines, setDeadlines] = useState<Deadline[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedDeadlineId, setSelectedDeadlineId] = useState<string>("");
   const [organizationId, setOrganizationId] = useState<string>("");
 
   useEffect(() => {
@@ -71,6 +83,17 @@ export default function DeadlinesPage() {
   const handleModalClose = () => {
     setIsModalOpen(false);
     loadDeadlines(); // Ricarica le scadenze dopo la creazione
+  };
+
+  const handleEditClick = (deadlineId: string) => {
+    setSelectedDeadlineId(deadlineId);
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditModalClose = () => {
+    setIsEditModalOpen(false);
+    setSelectedDeadlineId("");
+    loadDeadlines(); // Ricarica le scadenze dopo la modifica
   };
 
   const getStatusBadge = (status: string, dueDate: string) => {
@@ -125,10 +148,18 @@ export default function DeadlinesPage() {
             Gestisci tutte le scadenze dell'organizzazione
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuova Scadenza
-        </Button>
+        <div className="flex gap-2">
+          <Link href="/settings/deadline-templates">
+            <Button variant="outline">
+              <Settings className="mr-2 h-4 w-4" />
+              Gestisci Adempimenti
+            </Button>
+          </Link>
+          <Button onClick={() => setIsModalOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuova Scadenza
+          </Button>
+        </div>
       </div>
 
       <NewDeadlineModal
@@ -136,6 +167,16 @@ export default function DeadlinesPage() {
         isOpen={isModalOpen}
         onClose={handleModalClose}
       />
+
+      {selectedDeadlineId && (
+        <EditDeadlineModal
+          organizationId={organizationId}
+          deadlineId={selectedDeadlineId}
+          isOpen={isEditModalOpen}
+          onClose={handleEditModalClose}
+          onSuccess={handleEditModalClose}
+        />
+      )}
 
       <Card>
         <CardHeader>
@@ -182,7 +223,18 @@ export default function DeadlinesPage() {
                       </span>
                     </div>
                   </div>
-                  <div>{getStatusBadge(deadline.status, deadline.dueDate)}</div>
+                  <div className="flex items-center gap-3">
+                    {getStatusBadge(deadline.status, deadline.dueDate)}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditClick(deadline.id)}
+                      className="flex items-center gap-2"
+                    >
+                      <Edit className="h-4 w-4" />
+                      Modifica
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

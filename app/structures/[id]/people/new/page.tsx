@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, UserPlus, Users, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { validateFiscalCode } from "@/lib/utils";
+import { DatePicker } from "@/components/ui/date-picker";
 
 interface ExistingPerson {
   id: string;
@@ -51,11 +52,11 @@ export default function NewPersonPage() {
     fiscalCode: "",
     email: "",
     phone: "",
-    hireDate: "",
-    birthDate: "",
     notes: "",
     isPrimary: false,
   });
+  const [hireDate, setHireDate] = useState<Date | undefined>();
+  const [birthDate, setBirthDate] = useState<Date | undefined>();
 
   useEffect(() => {
     loadExistingPeople();
@@ -128,31 +129,6 @@ export default function NewPersonPage() {
     }
   };
 
-  // Helper per formattare l'input della data mentre l'utente digita
-  const formatDateInput = (value: string): string => {
-    // Rimuovi tutti i caratteri non numerici
-    const numbers = value.replace(/\D/g, "");
-
-    // Aggiungi gli slash automaticamente
-    if (numbers.length <= 2) {
-      return numbers;
-    } else if (numbers.length <= 4) {
-      return `${numbers.slice(0, 2)}/${numbers.slice(2)}`;
-    } else {
-      return `${numbers.slice(0, 2)}/${numbers.slice(2, 4)}/${numbers.slice(4, 8)}`;
-    }
-  };
-
-  // Helper per convertire data da dd/mm/yyyy a yyyy-mm-dd
-  const convertDateToISO = (dateStr: string): string | null => {
-    if (!dateStr) return null;
-    const parts = dateStr.split("/");
-    if (parts.length !== 3) return null;
-    const [day, month, year] = parts;
-    if (!day || !month || !year) return null;
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-  };
-
   const handleCreateNew = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -170,17 +146,21 @@ export default function NewPersonPage() {
     setLoading(true);
 
     try {
-      // Converti le date dal formato italiano a ISO
-      const hireDate = convertDateToISO(newPersonForm.hireDate);
-      const birthDate = convertDateToISO(newPersonForm.birthDate);
+      // Converti le date a formato ISO
+      const hireDateISO = hireDate
+        ? hireDate.toISOString().split("T")[0]
+        : null;
+      const birthDateISO = birthDate
+        ? birthDate.toISOString().split("T")[0]
+        : null;
 
       const response = await fetch("/api/people", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...newPersonForm,
-          hireDate,
-          birthDate,
+          hireDate: hireDateISO,
+          birthDate: birthDateISO,
           structureId, // Assegna automaticamente alla struttura corrente
         }),
       });
@@ -365,34 +345,18 @@ export default function NewPersonPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="hireDate">Data Assunzione</Label>
-                      <Input
-                        id="hireDate"
-                        type="text"
-                        value={newPersonForm.hireDate}
-                        onChange={(e) =>
-                          setNewPersonForm({
-                            ...newPersonForm,
-                            hireDate: formatDateInput(e.target.value),
-                          })
-                        }
-                        placeholder="gg/mm/aaaa"
-                        maxLength={10}
+                      <DatePicker
+                        date={hireDate}
+                        onDateChange={setHireDate}
+                        placeholder="Seleziona data assunzione"
                       />
                     </div>
                     <div>
                       <Label htmlFor="birthDate">Data di Nascita</Label>
-                      <Input
-                        id="birthDate"
-                        type="text"
-                        value={newPersonForm.birthDate}
-                        onChange={(e) =>
-                          setNewPersonForm({
-                            ...newPersonForm,
-                            birthDate: formatDateInput(e.target.value),
-                          })
-                        }
-                        placeholder="gg/mm/aaaa"
-                        maxLength={10}
+                      <DatePicker
+                        date={birthDate}
+                        onDateChange={setBirthDate}
+                        placeholder="Seleziona data di nascita"
                       />
                     </div>
                   </div>

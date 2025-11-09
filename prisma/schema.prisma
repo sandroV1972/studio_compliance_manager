@@ -69,6 +69,11 @@ enum DocumentOwner {
   ORGANIZATION
 }
 
+enum DocumentScope {
+  STRUCTURE
+  PERSON
+}
+
 enum NotificationType {
   EMAIL
 }
@@ -162,6 +167,7 @@ model Organization {
   roleTemplates     RoleTemplate[]
   deadlineTemplates DeadlineTemplate[]
   deadlineInstances DeadlineInstance[]
+  documentTemplates DocumentTemplate[]
   documents         Document[]
   auditLogs         AuditLog[]
 
@@ -336,12 +342,19 @@ model DeadlineInstance {
   completionDocumentId String?
   notes                String?
 
-  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  template       DeadlineTemplate? @relation(fields: [templateId], references: [id])
-  structure      Structure?        @relation(fields: [structureId], references: [id])
-  person         Person?           @relation(fields: [personId], references: [id])
-  roleAssignment RoleAssignment?   @relation(fields: [roleAssignmentId], references: [id])
+  // Campi per la gestione della ricorrenza
+  isRecurring       Boolean   @default(false) // Se questa istanza fa parte di una serie ricorrente
+  recurrenceActive  Boolean   @default(true) // Se la ricorrenza è ancora attiva
+  recurrenceEndDate DateTime? // Data opzionale di fine ricorrenza
+  recurrenceGroupId String? // ID per raggruppare tutte le istanze della stessa ricorrenza
+
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  template       DeadlineTemplate?  @relation(fields: [templateId], references: [id])
+  structure      Structure?         @relation(fields: [structureId], references: [id])
+  person         Person?            @relation(fields: [personId], references: [id])
+  roleAssignment RoleAssignment?    @relation(fields: [roleAssignmentId], references: [id])
   notifications  Notification[]
+  reminders      DeadlineReminder[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -349,6 +362,7 @@ model DeadlineInstance {
   @@index([organizationId, dueDate])
   @@index([status, dueDate])
   @@index([templateId])
+  @@index([recurrenceGroupId])
 }
 
 model RoleAssignment {
@@ -371,24 +385,60 @@ model RoleAssignment {
   @@index([roleTemplateId])
 }
 
+model DocumentTemplate {
+  id             String            @id @default(cuid())
+  ownerType      TemplateOwnerType @default(GLOBAL)
+  organizationId String?
+  scope          DocumentScope // STRUCTURE o PERSON
+  name           String // Nome del documento (es: "DVR", "Assicurazione RC")
+  description    String?
+  category       String? // Categoria (es: "Sicurezza", "Assicurazioni", "Formazione")
+  isMandatory    Boolean           @default(false) // Se è obbligatorio
+  hasExpiry      Boolean           @default(false) // Se ha una scadenza
+  reminderDays   Int? // Giorni prima della scadenza per il reminder
+  fileFormats    String? // Formati file accettati (es: "PDF,DOC,DOCX")
+  maxSizeKB      Int? // Dimensione massima in KB
+  notes          String?
+  legalReference String? // Riferimento normativo
+  active         Boolean           @default(true)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documents    Document[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerType, scope, active])
+  @@index([organizationId])
+}
+
 model Document {
   id             String        @id @default(cuid())
   organizationId String
+  templateId     String? // Collegamento al template (se basato su template)
   ownerType      DocumentOwner @default(DEADLINE)
-  ownerId        String
+  ownerId        String // ID di Person, Structure, Deadline, Organization
   fileName       String
   fileType       String?
   fileSize       Int?
   storagePath    String
   uploadedById   String?
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  uploadedBy   User?        @relation(fields: [uploadedById], references: [id])
+  // Campi per scadenza documento
+  expiryDate DateTime? // Data di scadenza del documento
+  isExpired  Boolean   @default(false) // Flag calcolato per documenti scaduti
+  notes      String?
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy       User?             @relation(fields: [uploadedById], references: [id])
+  documentTemplate DocumentTemplate? @relation(fields: [templateId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([organizationId, ownerType, ownerId])
+  @@index([templateId])
+  @@index([expiryDate])
 }
 
 model Notification {
@@ -407,6 +457,23 @@ model Notification {
 
   @@index([status, scheduledAt])
   @@index([deadlineId])
+}
+
+model DeadlineReminder {
+  id         String    @id @default(cuid())
+  deadlineId String
+  daysBefore Int // Giorni prima della scadenza per il reminder (es: 7, 3, 1)
+  message    String? // Messaggio personalizzato opzionale
+  notified   Boolean   @default(false) // Se il reminder è già stato inviato
+  notifiedAt DateTime? // Quando è stato inviato il reminder
+
+  deadline DeadlineInstance @relation(fields: [deadlineId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([deadlineId])
+  @@index([notified])
 }
 
 model AuditLog {

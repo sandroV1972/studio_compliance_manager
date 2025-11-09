@@ -103,85 +103,157 @@ export function StructureNav({ structureId }: StructureNavProps) {
   };
 
   return (
-    <div className="flex items-center gap-4">
-      {/* Dropdown selezione struttura */}
-      {organization && currentStructure && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              className="text-white hover:bg-white/10 flex items-center gap-2"
-            >
-              <Building2 className="h-4 w-4" />
-              <span className="font-medium">{currentStructure.name}</span>
-              {currentStructure.city && (
-                <span className="text-xs opacity-75">
-                  ({currentStructure.city})
-                </span>
-              )}
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            {organization.structures.map((structure) => (
-              <DropdownMenuItem
-                key={structure.id}
-                onClick={() => handleStructureChange(structure.id)}
-                className={structure.id === structureId ? "bg-accent" : ""}
+    <>
+      {/* Desktop Navigation */}
+      <div className="hidden lg:flex items-center gap-4">
+        {/* Dropdown selezione struttura */}
+        {organization && currentStructure && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="text-white hover:bg-white/10 flex items-center gap-2"
               >
-                <Building2 className="h-4 w-4 mr-2" />
-                <div className="flex flex-col">
-                  <span>{structure.name}</span>
-                  {structure.city && (
-                    <span className="text-xs text-muted-foreground">
-                      {structure.city}
-                    </span>
-                  )}
-                </div>
-                {structure.id === structureId && (
-                  <span className="ml-auto">✓</span>
+                <Building2 className="h-4 w-4" />
+                <span className="font-medium">{currentStructure.name}</span>
+                {currentStructure.city && (
+                  <span className="text-xs opacity-75">
+                    ({currentStructure.city})
+                  </span>
                 )}
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              {organization.structures.map((structure) => (
+                <DropdownMenuItem
+                  key={structure.id}
+                  onClick={() => handleStructureChange(structure.id)}
+                  className={structure.id === structureId ? "bg-accent" : ""}
+                >
+                  <Building2 className="h-4 w-4 mr-2" />
+                  <div className="flex flex-col">
+                    <span>{structure.name}</span>
+                    {structure.city && (
+                      <span className="text-xs text-muted-foreground">
+                        {structure.city}
+                      </span>
+                    )}
+                  </div>
+                  {structure.id === structureId && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => router.push("/structures")}>
+                <LayoutDashboard className="h-4 w-4 mr-2" />
+                Dashboard
               </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push("/structures")}>
-              <LayoutDashboard className="h-4 w-4 mr-2" />
-              Dashboard
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
-      {/* Separatore */}
-      <div className="h-8 w-px bg-white/20"></div>
+        {/* Separatore */}
+        <div className="h-8 w-px bg-white/20"></div>
 
-      {/* Menu navigazione */}
-      <nav className="flex items-center gap-1">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          if (item.isActive) {
+        {/* Menu navigazione */}
+        <nav className="flex items-center gap-1">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            if (item.isActive) {
+              return (
+                <span
+                  key={item.href}
+                  className="text-sm text-white bg-white/20 px-3 py-2 rounded-md flex items-center gap-1 cursor-not-allowed"
+                >
+                  <Icon className="h-4 w-4" />
+                  {item.label}
+                </span>
+              );
+            }
             return (
-              <span
+              <Link
                 key={item.href}
-                className="text-sm text-white bg-white/20 px-3 py-2 rounded-md flex items-center gap-1 cursor-not-allowed"
+                href={item.href}
+                className="text-sm text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-all flex items-center gap-1"
               >
                 <Icon className="h-4 w-4" />
                 {item.label}
-              </span>
+              </Link>
             );
-          }
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="text-sm text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-all flex items-center gap-1"
-            >
-              <Icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-    </div>
+          })}
+        </nav>
+      </div>
+
+      {/* Mobile Navigation - Dropdown combinato */}
+      <div className="lg:hidden">
+        {organization && currentStructure && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="text-white hover:bg-white/10 flex items-center gap-2 text-xs px-2"
+              >
+                <Building2 className="h-4 w-4" />
+                <span className="font-medium truncate max-w-[120px]">
+                  {currentStructure.name}
+                </span>
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              {/* Sezioni della struttura corrente */}
+              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                Sezioni
+              </div>
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <DropdownMenuItem
+                    key={item.href}
+                    onClick={() => router.push(item.href)}
+                    className={item.isActive ? "bg-accent" : ""}
+                  >
+                    <Icon className="h-4 w-4 mr-2" />
+                    {item.label}
+                  </DropdownMenuItem>
+                );
+              })}
+              <DropdownMenuSeparator />
+              {/* Altre strutture */}
+              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                Cambia Struttura
+              </div>
+              {organization.structures.map((structure) => (
+                <DropdownMenuItem
+                  key={structure.id}
+                  onClick={() => handleStructureChange(structure.id)}
+                  className={structure.id === structureId ? "bg-accent" : ""}
+                >
+                  <Building2 className="h-4 w-4 mr-2" />
+                  <div className="flex flex-col">
+                    <span>{structure.name}</span>
+                    {structure.city && (
+                      <span className="text-xs text-muted-foreground">
+                        {structure.city}
+                      </span>
+                    )}
+                  </div>
+                  {structure.id === structureId && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => router.push("/structures")}>
+                <LayoutDashboard className="h-4 w-4 mr-2" />
+                Dashboard
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    </>
   );
 }

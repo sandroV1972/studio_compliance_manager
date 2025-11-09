@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
+import { seedDocumentTemplates } from "./seeds/document-templates";
 
 const prisma = new PrismaClient();
 
@@ -84,13 +85,16 @@ async function main() {
   for (const role of globalRoles) {
     await prisma.roleTemplate.upsert({
       where: {
-        ownerType_key_key: {
+        ownerType_key: {
           ownerType: "GLOBAL",
           key: role.key,
         },
       },
       update: {},
-      create: role,
+      create: {
+        ownerType: "GLOBAL",
+        ...role,
+      },
     });
   }
 
@@ -107,9 +111,11 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "HIRE_DATE",
       legalReference: "D.Lgs. 81/08 art. 37; Accordi Stato-Regioni",
-      sourceUrl: "https://www.apcampus.it/news/quando-devo-fare-gli-aggiornamenti-previsti-dal-d-lgs-8108",
+      sourceUrl:
+        "https://www.apcampus.it/news/quando-devo-fare-gli-aggiornamenti-previsti-dal-d-lgs-8108",
       country: "IT",
-      notes: "Obbligatorio per tutti i lavoratori. Monte ore: 6 ore per aggiornamento quinquennale.",
+      notes:
+        "Obbligatorio per tutti i lavoratori. Monte ore: 6 ore per aggiornamento quinquennale.",
     },
     {
       scope: "PERSON",
@@ -121,9 +127,11 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "ASSIGNMENT_START",
       legalReference: "D.Lgs. 81/08 art. 37; Accordi Stato-Regioni",
-      sourceUrl: "https://www.apcampus.it/news/quando-devo-fare-gli-aggiornamenti-previsti-dal-d-lgs-8108",
+      sourceUrl:
+        "https://www.apcampus.it/news/quando-devo-fare-gli-aggiornamenti-previsti-dal-d-lgs-8108",
       country: "IT",
-      notes: "Per lavoratori con funzioni di preposto. Monte ore: 6 ore biennali.",
+      notes:
+        "Per lavoratori con funzioni di preposto. Monte ore: 6 ore biennali.",
     },
     {
       scope: "PERSON",
@@ -135,37 +143,45 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "ASSIGNMENT_START",
       legalReference: "D.Lgs. 81/08 art. 37; Accordi Stato-Regioni",
-      sourceUrl: "https://www.apcampus.it/news/quando-devo-fare-gli-aggiornamenti-previsti-dal-d-lgs-8108",
+      sourceUrl:
+        "https://www.apcampus.it/news/quando-devo-fare-gli-aggiornamenti-previsti-dal-d-lgs-8108",
       country: "IT",
-      notes: "Per dirigenti con responsabilità in materia di sicurezza. Monte ore: 6 ore quinquennali.",
+      notes:
+        "Per dirigenti con responsabilità in materia di sicurezza. Monte ore: 6 ore quinquennali.",
     },
     {
       scope: "PERSON",
       complianceType: "TRAINING",
       title: "Datore di Lavoro RSPP - Aggiornamento quinquennale",
-      description: "Aggiornamento formazione RSPP per datore di lavoro (rischio alto)",
+      description:
+        "Aggiornamento formazione RSPP per datore di lavoro (rischio alto)",
       recurrenceUnit: "YEAR",
       recurrenceEvery: 5,
       firstDueOffsetDays: 0,
       anchor: "ASSIGNMENT_START",
       legalReference: "D.Lgs. 81/08 art. 34; Accordi Stato-Regioni",
-      sourceUrl: "https://www.apcampus.it/news/quando-devo-fare-gli-aggiornamenti-previsti-dal-d-lgs-8108",
+      sourceUrl:
+        "https://www.apcampus.it/news/quando-devo-fare-gli-aggiornamenti-previsti-dal-d-lgs-8108",
       country: "IT",
-      notes: "Per datore di lavoro che svolge direttamente i compiti di RSPP. Rischio alto (odontoiatria): 14 ore quinquennali.",
+      notes:
+        "Per datore di lavoro che svolge direttamente i compiti di RSPP. Rischio alto (odontoiatria): 14 ore quinquennali.",
     },
     {
       scope: "PERSON",
       complianceType: "TRAINING",
       title: "RLS - Aggiornamento annuale",
-      description: "Aggiornamento formazione Rappresentante Lavoratori Sicurezza",
+      description:
+        "Aggiornamento formazione Rappresentante Lavoratori Sicurezza",
       recurrenceUnit: "YEAR",
       recurrenceEvery: 1,
       firstDueOffsetDays: 0,
       anchor: "ASSIGNMENT_START",
       legalReference: "D.Lgs. 81/08 art. 37; Accordi Stato-Regioni",
-      sourceUrl: "https://www.apcampus.it/news/quando-devo-fare-gli-aggiornamenti-previsti-dal-d-lgs-8108",
+      sourceUrl:
+        "https://www.apcampus.it/news/quando-devo-fare-gli-aggiornamenti-previsti-dal-d-lgs-8108",
       country: "IT",
-      notes: "Obbligatorio annuale. Monte ore: 4 ore (< 50 dipendenti) o 8 ore (≥ 50 dipendenti).",
+      notes:
+        "Obbligatorio annuale. Monte ore: 4 ore (< 50 dipendenti) o 8 ore (≥ 50 dipendenti).",
     },
     {
       scope: "PERSON",
@@ -177,9 +193,11 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "ASSIGNMENT_START",
       legalReference: "DM 2/9/2021",
-      sourceUrl: "https://www.apcampus.it/news/quando-devo-fare-gli-aggiornamenti-previsti-dal-d-lgs-8108",
+      sourceUrl:
+        "https://www.apcampus.it/news/quando-devo-fare-gli-aggiornamenti-previsti-dal-d-lgs-8108",
       country: "IT",
-      notes: "Livello 1: 2 ore; Livello 2: 5 ore; Livello 3: 8 ore. Verificare livello di rischio dello studio.",
+      notes:
+        "Livello 1: 2 ore; Livello 2: 5 ore; Livello 3: 8 ore. Verificare livello di rischio dello studio.",
     },
     {
       scope: "PERSON",
@@ -191,9 +209,11 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "ASSIGNMENT_START",
       legalReference: "DM 388/2003",
-      sourceUrl: "https://www.polesconsulting.it/durata-e-validita-della-formazione-in-materia-di-sicurezza-sul-lavoro/",
+      sourceUrl:
+        "https://www.polesconsulting.it/durata-e-validita-della-formazione-in-materia-di-sicurezza-sul-lavoro/",
       country: "IT",
-      notes: "Gruppo A: 6 ore; Gruppi B/C: 4 ore. Verificare classificazione dello studio.",
+      notes:
+        "Gruppo A: 6 ore; Gruppi B/C: 4 ore. Verificare classificazione dello studio.",
     },
     {
       scope: "STRUCTURE",
@@ -205,9 +225,11 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "CUSTOM",
       legalReference: "D.Lgs. 81/08 art. 29",
-      sourceUrl: "https://www.sicurezzasaluteigienelavoro.it/home/sicurezza-salute-igiene-sui-luoghi-di-lavoro/sicurezza-salute-lavoratori/scadenze-sicurezza-sul-lavoro",
+      sourceUrl:
+        "https://www.sicurezzasaluteigienelavoro.it/home/sicurezza-salute-igiene-sui-luoghi-di-lavoro/sicurezza-salute-lavoratori/scadenze-sicurezza-sul-lavoro",
       country: "IT",
-      notes: "Aggiornare entro 30 giorni da modifiche significative. Rischi fisici (art.181): ogni 4 anni; cancerogeni/mutageni (art.236) e biologico (art.271): ogni 3 anni.",
+      notes:
+        "Aggiornare entro 30 giorni da modifiche significative. Rischi fisici (art.181): ogni 4 anni; cancerogeni/mutageni (art.236) e biologico (art.271): ogni 3 anni.",
     },
     {
       scope: "STRUCTURE",
@@ -219,9 +241,11 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "LAST_COMPLETION",
       legalReference: "DPR 462/01",
-      sourceUrl: "https://www.sicurezzasaluteigienelavoro.it/home/sicurezza-salute-igiene-sui-luoghi-di-lavoro/sicurezza-salute-lavoratori/scadenze-sicurezza-sul-lavoro",
+      sourceUrl:
+        "https://www.sicurezzasaluteigienelavoro.it/home/sicurezza-salute-igiene-sui-luoghi-di-lavoro/sicurezza-salute-lavoratori/scadenze-sicurezza-sul-lavoro",
       country: "IT",
-      notes: "Verifica quinquennale obbligatoria. Frequenza può variare in base alla classificazione dell'impianto.",
+      notes:
+        "Verifica quinquennale obbligatoria. Frequenza può variare in base alla classificazione dell'impianto.",
       requiredDocumentName: "Rapporto di verifica impianto elettrico",
     },
     {
@@ -234,9 +258,11 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "LAST_COMPLETION",
       legalReference: "UNI 9994-1",
-      sourceUrl: "https://www.sicurezzasaluteigienelavoro.it/home/sicurezza-salute-igiene-sui-luoghi-di-lavoro/sicurezza-salute-lavoratori/scadenze-sicurezza-sul-lavoro",
+      sourceUrl:
+        "https://www.sicurezzasaluteigienelavoro.it/home/sicurezza-salute-igiene-sui-luoghi-di-lavoro/sicurezza-salute-lavoratori/scadenze-sicurezza-sul-lavoro",
       country: "IT",
-      notes: "Controllo semestrale secondo norma tecnica. Revisioni e collaudi secondo piano specifico.",
+      notes:
+        "Controllo semestrale secondo norma tecnica. Revisioni e collaudi secondo piano specifico.",
       requiredDocumentName: "Rapporto controllo estintori",
     },
     {
@@ -250,7 +276,8 @@ async function main() {
       anchor: "LAST_COMPLETION",
       legalReference: "Norme tecniche di buona pratica",
       country: "IT",
-      notes: "Test funzionale mensile consigliato; prova autonomia annuale obbligatoria. Mantenere registro prove.",
+      notes:
+        "Test funzionale mensile consigliato; prova autonomia annuale obbligatoria. Mantenere registro prove.",
       requiredDocumentName: "Registro prove illuminazione emergenza",
     },
     {
@@ -263,9 +290,11 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "LAST_COMPLETION",
       legalReference: "D.Lgs. 101/2020 art. 130-131",
-      sourceUrl: "https://www.aio.it/radioprotezione-nuovo-decreto-consente-di-concordare-i-controlli-di-qualita-con-lesperto/",
+      sourceUrl:
+        "https://www.aio.it/radioprotezione-nuovo-decreto-consente-di-concordare-i-controlli-di-qualita-con-lesperto/",
       country: "IT",
-      notes: "Visita almeno annuale dell'Esperto di Radioprotezione. Verificare nomina ER valida.",
+      notes:
+        "Visita almeno annuale dell'Esperto di Radioprotezione. Verificare nomina ER valida.",
       requiredDocumentName: "Rapporto visita ER",
     },
     {
@@ -278,9 +307,11 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "LAST_COMPLETION",
       legalReference: "D.Lgs. 101/2020 come modificato dal D.Lgs. 203/2022",
-      sourceUrl: "https://www.odontoiatria33.it/normative/23086/radioprotezione-in-vigore-le-modifiche-al-decreto-101.html",
+      sourceUrl:
+        "https://www.odontoiatria33.it/normative/23086/radioprotezione-in-vigore-le-modifiche-al-decreto-101.html",
       country: "IT",
-      notes: "Periodicità definita dallo Specialista di Fisica Medica/ER. Di norma annuale o secondo norme specifiche per tipo apparecchio (endorale/OPG/CBCT).",
+      notes:
+        "Periodicità definita dallo Specialista di Fisica Medica/ER. Di norma annuale o secondo norme specifiche per tipo apparecchio (endorale/OPG/CBCT).",
       requiredDocumentName: "Rapporto CQ apparecchi RX",
     },
     {
@@ -293,9 +324,11 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "CUSTOM",
       legalReference: "D.Lgs. 101/2020",
-      sourceUrl: "https://blog.dentaltrey.it/le-novita-introdotte-dal-decreto-d-lgs-101-20-in-materia-di-radioprotezione-in-odontoiatria",
+      sourceUrl:
+        "https://blog.dentaltrey.it/le-novita-introdotte-dal-decreto-d-lgs-101-20-in-materia-di-radioprotezione-in-odontoiatria",
       country: "IT",
-      notes: "Inizio attività: almeno 10 giorni prima. Cessazione: entro 30 giorni. Variazioni amministrative: entro 30 giorni.",
+      notes:
+        "Inizio attività: almeno 10 giorni prima. Cessazione: entro 30 giorni. Variazioni amministrative: entro 30 giorni.",
     },
     {
       scope: "PERSON",
@@ -307,9 +340,11 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "LAST_COMPLETION",
       legalReference: "D.Lgs. 101/2020 art. 168, All. XXIX",
-      sourceUrl: "https://www.cemirad.com/radioprotezione/novita-introdotte-dal-d-lgs-101-20-per-gli-studi-odontoiatrici/",
+      sourceUrl:
+        "https://www.cemirad.com/radioprotezione/novita-introdotte-dal-d-lgs-101-20-per-gli-studi-odontoiatrici/",
       country: "IT",
-      notes: "Prima trasmissione entro 3 anni dall'entrata in vigore, poi ogni 4 anni. Tracciare DAP/tempo, genere e fascia età.",
+      notes:
+        "Prima trasmissione entro 3 anni dall'entrata in vigore, poi ogni 4 anni. Tracciare DAP/tempo, genere e fascia età.",
     },
     {
       scope: "STRUCTURE",
@@ -321,9 +356,11 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "LAST_COMPLETION",
       legalReference: "D.Lgs. 101/2020 art. 158, All. XXVI",
-      sourceUrl: "https://blog.dentaltrey.it/le-novita-introdotte-dal-decreto-d-lgs-101-20-in-materia-di-radioprotezione-in-odontoiatria",
+      sourceUrl:
+        "https://blog.dentaltrey.it/le-novita-introdotte-dal-decreto-d-lgs-101-20-in-materia-di-radioprotezione-in-odontoiatria",
       country: "IT",
-      notes: "Verifica quadriennale dei livelli diagnostici di riferimento per le pratiche radiologiche.",
+      notes:
+        "Verifica quadriennale dei livelli diagnostici di riferimento per le pratiche radiologiche.",
     },
     {
       scope: "PERSON",
@@ -335,9 +372,11 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "HIRE_DATE",
       legalReference: "D.Lgs. 101/2020; correttivo 203/2022",
-      sourceUrl: "https://www.cemirad.com/normative-studi-medici/modifiche-al-d-lgs-101-20-odontoiatria-e-controlli-di-qualita/",
+      sourceUrl:
+        "https://www.cemirad.com/normative-studi-medici/modifiche-al-d-lgs-101-20-odontoiatria-e-controlli-di-qualita/",
       country: "IT",
-      notes: "Formazione erogata dall'Esperto di Radioprotezione con requisiti formatore. Aggiornamento quinquennale.",
+      notes:
+        "Formazione erogata dall'Esperto di Radioprotezione con requisiti formatore. Aggiornamento quinquennale.",
     },
     {
       scope: "PERSON",
@@ -349,9 +388,11 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "CUSTOM",
       legalReference: "D.Lgs. 101/2020 art. 162",
-      sourceUrl: "https://www.cemirad.com/radioprotezione/novita-introdotte-dal-d-lgs-101-20-per-gli-studi-odontoiatrici/",
+      sourceUrl:
+        "https://www.cemirad.com/radioprotezione/novita-introdotte-dal-d-lgs-101-20-per-gli-studi-odontoiatrici/",
       country: "IT",
-      notes: "Almeno il 15% dei crediti ECM triennali deve essere in radioprotezione per odontoiatri e medici radiologi.",
+      notes:
+        "Almeno il 15% dei crediti ECM triennali deve essere in radioprotezione per odontoiatri e medici radiologi.",
     },
     {
       scope: "PERSON",
@@ -364,7 +405,8 @@ async function main() {
       anchor: "LAST_COMPLETION",
       legalReference: "D.Lgs. 101/2020",
       country: "IT",
-      notes: "Frequenza lettura secondo contratto con servizio dosimetrico (mensile/bimestrale). Allegare report dosimetrici.",
+      notes:
+        "Frequenza lettura secondo contratto con servizio dosimetrico (mensile/bimestrale). Allegare report dosimetrici.",
       requiredDocumentName: "Report dosimetrico",
     },
     {
@@ -379,7 +421,8 @@ async function main() {
       legalReference: "DPR 254/2003; D.Lgs. 152/2006",
       sourceUrl: "https://www.cnr.it/it/registro-carico-scarico",
       country: "IT",
-      notes: "Annotazioni entro 5 giorni da carico/scarico per CER 18.01.03* / 18.02.02*. Conservare per 3 anni. Vidimazione CCIAA.",
+      notes:
+        "Annotazioni entro 5 giorni da carico/scarico per CER 18.01.03* / 18.02.02*. Conservare per 3 anni. Vidimazione CCIAA.",
     },
     {
       scope: "STRUCTURE",
@@ -391,15 +434,18 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "CUSTOM",
       legalReference: "DPR 254/2003",
-      sourceUrl: "https://www.sipram.it/la-corretta-gestione-dei-rifiuti-sanitari/",
+      sourceUrl:
+        "https://www.sipram.it/la-corretta-gestione-dei-rifiuti-sanitari/",
       country: "IT",
-      notes: ">200L: max 5 giorni dalla chiusura contenitore; ≤200L: max 30 giorni. Amalgama Hg: fino a 1 anno.",
+      notes:
+        ">200L: max 5 giorni dalla chiusura contenitore; ≤200L: max 30 giorni. Amalgama Hg: fino a 1 anno.",
     },
     {
       scope: "PERSON",
       complianceType: "REPORTING",
       title: "RENTRI - Iscrizione obbligatoria",
-      description: "Iscrizione al Registro Elettronico Nazionale Tracciabilità Rifiuti",
+      description:
+        "Iscrizione al Registro Elettronico Nazionale Tracciabilità Rifiuti",
       recurrenceUnit: "YEAR",
       recurrenceEvery: 1,
       firstDueOffsetDays: 0,
@@ -407,7 +453,8 @@ async function main() {
       legalReference: "D.Lgs. 213/2022; DM 59/2023",
       sourceUrl: "https://www.rifiutoo.com/rentri/soggetti-obbligati/",
       country: "IT",
-      notes: "Piccoli studi (fino a 10 dip.): finestra 15/12/2025-13/02/2026. FIR digitale dal 13/02/2025.",
+      notes:
+        "Piccoli studi (fino a 10 dip.): finestra 15/12/2025-13/02/2026. FIR digitale dal 13/02/2025.",
     },
     {
       scope: "PERSON",
@@ -419,7 +466,8 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "LAST_COMPLETION",
       country: "IT",
-      notes: "Periodicità 2-3 anni secondo Regione/Provider. Se presente DAE, verificare anche scadenza piastre/batterie.",
+      notes:
+        "Periodicità 2-3 anni secondo Regione/Provider. Se presente DAE, verificare anche scadenza piastre/batterie.",
     },
     {
       scope: "PERSON",
@@ -432,7 +480,8 @@ async function main() {
       anchor: "HIRE_DATE",
       legalReference: "D.Lgs. 81/08 art. 41",
       country: "IT",
-      notes: "Periodicità stabilita dal Medico Competente. Include visite preassuntive, periodiche e a richiesta. Allegare giudizi di idoneità.",
+      notes:
+        "Periodicità stabilita dal Medico Competente. Include visite preassuntive, periodiche e a richiesta. Allegare giudizi di idoneità.",
       requiredDocumentName: "Giudizio idoneità",
     },
     {
@@ -445,7 +494,8 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "LAST_COMPLETION",
       country: "IT",
-      notes: "Bowie-Dick/Helix quotidiano, test biologico settimanale, manutenzione annuale. Mantenere registri cicli e validazioni.",
+      notes:
+        "Bowie-Dick/Helix quotidiano, test biologico settimanale, manutenzione annuale. Mantenere registri cicli e validazioni.",
       requiredDocumentName: "Registro sterilizzazione e manutenzione",
     },
     {
@@ -458,7 +508,8 @@ async function main() {
       firstDueOffsetDays: 0,
       anchor: "LAST_COMPLETION",
       country: "IT",
-      notes: "Secondo libretto fabbricante (trimestrale/annuale). Include aspirazione, compressori, elettromedicali.",
+      notes:
+        "Secondo libretto fabbricante (trimestrale/annuale). Include aspirazione, compressori, elettromedicali.",
       requiredDocumentName: "Rapporto manutenzione",
     },
     {
@@ -472,7 +523,8 @@ async function main() {
       anchor: "HIRE_DATE",
       legalReference: "GDPR (Reg. UE 2016/679)",
       country: "IT",
-      notes: "Formazione annuale consigliata. DPIA e informative aggiornate on-change. Nomine responsabili esterni.",
+      notes:
+        "Formazione annuale consigliata. DPIA e informative aggiornate on-change. Nomine responsabili esterni.",
     },
     {
       scope: "PERSON",
@@ -485,20 +537,23 @@ async function main() {
       anchor: "CUSTOM",
       legalReference: "Normativa ECM nazionale",
       country: "IT",
-      notes: "Numero crediti richiesti per triennio vigente (es. 150 crediti). Configurare per professionista sanitario.",
+      notes:
+        "Numero crediti richiesti per triennio vigente (es. 150 crediti). Configurare per professionista sanitario.",
     },
     {
       scope: "PERSON",
       complianceType: "INSURANCE",
       title: "Assicurazione RC professionale - Rinnovo",
-      description: "Rinnovo polizza assicurazione responsabilità civile professionale",
+      description:
+        "Rinnovo polizza assicurazione responsabilità civile professionale",
       recurrenceUnit: "YEAR",
       recurrenceEvery: 1,
       firstDueOffsetDays: 30,
       anchor: "LAST_COMPLETION",
       legalReference: "Legge Gelli-Bianco (L. 24/2017)",
       country: "IT",
-      notes: "Obbligatoria per professionisti sanitari. Verificare massimali adeguati.",
+      notes:
+        "Obbligatoria per professionisti sanitari. Verificare massimali adeguati.",
       requiredDocumentName: "Polizza RC professionale",
     },
   ];
@@ -526,7 +581,9 @@ async function main() {
     });
   }
 
-  console.log(`✅ ${globalDeadlineTemplates.length} Global Deadline Templates created`);
+  console.log(
+    `✅ ${globalDeadlineTemplates.length} Global Deadline Templates created`,
+  );
 
   const demoUserEmail = "demo@studiodentistico.it";
   const demoUserPassword = await bcrypt.hash("Demo123!", 10);
@@ -659,6 +716,9 @@ async function main() {
   }
 
   console.log("✅ Demo Role Assignments created");
+
+  // Seed document templates
+  await seedDocumentTemplates();
 
   console.log("\n🎉 Seeding completed successfully!");
   console.log("\n📝 Login credentials:");
