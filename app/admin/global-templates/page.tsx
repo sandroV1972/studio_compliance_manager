@@ -22,65 +22,50 @@ import {
   Repeat,
   Plus,
   Pencil,
-  Eye,
   Globe,
   MapPin,
-  Building2,
+  Archive,
+  ArchiveRestore,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
-import { NewTemplateModal } from "@/components/deadline-templates/new-template-modal";
-import { EditTemplateModal } from "@/components/deadline-templates/edit-template-modal";
-import { ViewTemplateModal } from "@/components/deadline-templates/view-template-modal";
+import { EditGlobalTemplateModal } from "@/components/admin/edit-global-template-modal";
+import { CreateGlobalTemplateModal } from "@/components/admin/create-global-template-modal";
 
-interface DeadlineTemplate {
+interface GlobalTemplate {
   id: string;
   title: string;
   complianceType: string;
   description: string | null;
   scope: string;
-  ownerType: string;
   recurrenceUnit: string;
   recurrenceEvery: number;
   firstDueOffsetDays: number;
   requiredDocumentName: string | null;
-  region: string | null;
+  regions: string | null; // JSON string array
+  legalReference: string | null;
+  sourceUrl: string | null;
+  active: boolean;
 }
 
-export default function DeadlineTemplatesPage() {
-  const [templates, setTemplates] = useState<DeadlineTemplate[]>([]);
+export default function GlobalTemplatesPage() {
+  const [templates, setTemplates] = useState<GlobalTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [organizationId, setOrganizationId] = useState<string>("");
-  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
   useEffect(() => {
-    loadOrganization();
-  }, []);
-
-  useEffect(() => {
-    if (organizationId) {
-      loadTemplates();
-    }
-  }, [organizationId]);
-
-  const loadOrganization = async () => {
-    try {
-      const response = await fetch("/api/user/organization");
-      if (!response.ok) return;
-      const data = await response.json();
-      setOrganizationId(data.id);
-    } catch (error) {
-      console.error("Errore:", error);
-    }
-  };
+    loadTemplates();
+  }, [showArchived]);
 
   const loadTemplates = async () => {
     try {
-      const response = await fetch(
-        `/api/organizations/${organizationId}/deadline-templates`,
-      );
+      const url = showArchived
+        ? "/api/admin/global-templates?includeArchived=true"
+        : "/api/admin/global-templates";
+      const response = await fetch(url);
       if (!response.ok) throw new Error("Errore nel caricamento");
       const data = await response.json();
       setTemplates(data.templates || []);
@@ -88,6 +73,49 @@ export default function DeadlineTemplatesPage() {
       console.error("Errore caricamento templates:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleArchive = async (templateId: string, archive: boolean) => {
+    try {
+      const response = await fetch(
+        `/api/admin/global-templates/${templateId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ active: !archive }),
+        },
+      );
+
+      if (!response.ok) throw new Error("Errore nell'archiviazione");
+      await loadTemplates();
+    } catch (error) {
+      console.error("Errore:", error);
+      alert("Errore nell'archiviazione del template");
+    }
+  };
+
+  const handleDelete = async (templateId: string) => {
+    if (
+      !confirm(
+        "Sei sicuro di voler eliminare questo template? Questa azione � irreversibile.",
+      )
+    )
+      return;
+
+    try {
+      const response = await fetch(
+        `/api/admin/global-templates/${templateId}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      if (!response.ok) throw new Error("Errore nell'eliminazione");
+      await loadTemplates();
+    } catch (error) {
+      console.error("Errore:", error);
+      alert("Errore nell'eliminazione del template");
     }
   };
 
@@ -145,24 +173,55 @@ export default function DeadlineTemplatesPage() {
     return `Ogni ${every} ${units[unit] || unit.toLowerCase()}`;
   };
 
-  const getTemplateBadge = (template: DeadlineTemplate) => {
-    if (template.ownerType === "ORG") {
+  const getRegionBadge = (regionsJson: string | null) => {
+    if (!regionsJson) {
       return (
-        <Badge variant="outline" className="border-purple-300 text-purple-700">
-          <Building2 className="h-3 w-3 mr-1" />
-          Organizzazione
+        <Badge variant="outline" className="border-green-300 text-green-700">
+          <Globe className="h-3 w-3 mr-1" />
+          Nazionale
         </Badge>
       );
     }
 
-    // Template GLOBAL
-    if (template.region) {
-      return (
-        <Badge variant="outline" className="border-indigo-300 text-indigo-700">
-          <MapPin className="h-3 w-3 mr-1" />
-          Regionale: {template.region}
-        </Badge>
-      );
+    try {
+      const regions = JSON.parse(regionsJson);
+      if (Array.isArray(regions) && regions.length > 0) {
+        if (regions.length === 1) {
+          return (
+            <Badge
+              variant="outline"
+              className="border-indigo-300 text-indigo-700"
+            >
+              <MapPin className="h-3 w-3 mr-1" />
+              {regions[0]}
+            </Badge>
+          );
+        } else if (regions.length === 20) {
+          // Tutte le regioni selezionate = nazionale
+          return (
+            <Badge
+              variant="outline"
+              className="border-green-300 text-green-700"
+            >
+              <Globe className="h-3 w-3 mr-1" />
+              Nazionale
+            </Badge>
+          );
+        } else {
+          return (
+            <Badge
+              variant="outline"
+              className="border-indigo-300 text-indigo-700"
+            >
+              <MapPin className="h-3 w-3 mr-1" />
+              {regions.length} regioni
+            </Badge>
+          );
+        }
+      }
+    } catch (e) {
+      // Se il parsing fallisce, considera nazionale
+      console.error("Error parsing regions:", e);
     }
 
     return (
@@ -182,7 +241,7 @@ export default function DeadlineTemplatesPage() {
       acc[type].push(template);
       return acc;
     },
-    {} as Record<string, DeadlineTemplate[]>,
+    {} as Record<string, GlobalTemplate[]>,
   );
 
   if (loading) {
@@ -197,39 +256,54 @@ export default function DeadlineTemplatesPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Link href="/structures">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Indietro
-            </Button>
-          </Link>
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">
-              Gestione Adempimenti
+            <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+              Template Globali
             </h2>
             <p className="text-muted-foreground">
-              Visualizza e gestisci i template di adempimenti
+              Gestione template di adempimenti validi per tutte le
+              organizzazioni
             </p>
           </div>
         </div>
-        <Button onClick={() => setIsNewModalOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuovo Adempimento
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant={showArchived ? "default" : "outline"}
+            onClick={() => setShowArchived(!showArchived)}
+          >
+            {showArchived ? (
+              <>
+                <ArchiveRestore className="mr-2 h-4 w-4" />
+                Nascondi Archiviati
+              </>
+            ) : (
+              <>
+                <Archive className="mr-2 h-4 w-4" />
+                Mostra Archiviati
+              </>
+            )}
+          </Button>
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuovo Template Globale
+          </Button>
+        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Template Adempimenti (01)</CardTitle>
+          <CardTitle>Template Globali ({templates.length})</CardTitle>
           <CardDescription>
-            {templates.length} template disponibili per la creazione di scadenze
-            ricorrenti
+            Questi template sono visibili a tutte le organizzazioni secondo la
+            loro applicabilit� (nazionale/regionale)
           </CardDescription>
         </CardHeader>
         <CardContent>
           {templates.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              Nessun template trovato
+              {showArchived
+                ? "Nessun template archiviato trovato"
+                : "Nessun template trovato"}
             </p>
           ) : (
             <Accordion type="multiple" className="w-full">
@@ -248,91 +322,110 @@ export default function DeadlineTemplatesPage() {
                     <AccordionContent>
                       <div className="grid gap-3 pt-2">
                         {typeTemplates.map((template) => (
-                          <div key={template.id} className="relative">
-                            {/* BUTTON - Visualizza per GLOBAL, Modifica per ORG */}
+                          <div
+                            key={template.id}
+                            className={`relative ${
+                              !template.active ? "opacity-50" : ""
+                            }`}
+                          >
+                            {/* BUTTONS */}
                             <div
                               style={{
                                 position: "absolute",
                                 top: "1rem",
                                 right: "1rem",
                                 zIndex: 10,
+                                display: "flex",
+                                gap: "0.5rem",
                               }}
                             >
-                              {template.ownerType === "GLOBAL" ? (
+                              <button
+                                type="button"
+                                style={{
+                                  padding: "0.5rem 1rem",
+                                  border: "1px solid #d1d5db",
+                                  borderRadius: "0.375rem",
+                                  background: "white",
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "0.5rem",
+                                  fontSize: "0.875rem",
+                                  fontWeight: "500",
+                                  boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = "#f3f4f6";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = "white";
+                                }}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setSelectedTemplateId(template.id);
+                                  setIsEditModalOpen(true);
+                                }}
+                              >
+                                <Pencil
+                                  style={{ width: "1rem", height: "1rem" }}
+                                />
+                                <span>Modifica</span>
+                              </button>
+
+                              {template.active ? (
                                 <button
                                   type="button"
                                   style={{
                                     padding: "0.5rem 1rem",
-                                    border: "1px solid #d1d5db",
+                                    border: "1px solid #f97316",
                                     borderRadius: "0.375rem",
                                     background: "white",
+                                    color: "#f97316",
                                     cursor: "pointer",
                                     display: "flex",
                                     alignItems: "center",
                                     gap: "0.5rem",
                                     fontSize: "0.875rem",
                                     fontWeight: "500",
-                                    boxShadow:
-                                      "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.background =
-                                      "#f3f4f6";
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = "white";
                                   }}
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    setSelectedTemplateId(template.id);
-                                    setTimeout(() => {
-                                      setIsViewModalOpen(true);
-                                    }, 100);
+                                    handleArchive(template.id, true);
                                   }}
                                 >
-                                  <Eye
+                                  <Archive
                                     style={{ width: "1rem", height: "1rem" }}
                                   />
-                                  <span>Visualizza</span>
+                                  <span>Archivia</span>
                                 </button>
                               ) : (
                                 <button
                                   type="button"
                                   style={{
                                     padding: "0.5rem 1rem",
-                                    border: "1px solid #d1d5db",
+                                    border: "1px solid #10b981",
                                     borderRadius: "0.375rem",
                                     background: "white",
+                                    color: "#10b981",
                                     cursor: "pointer",
                                     display: "flex",
                                     alignItems: "center",
                                     gap: "0.5rem",
                                     fontSize: "0.875rem",
                                     fontWeight: "500",
-                                    boxShadow:
-                                      "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.background =
-                                      "#f3f4f6";
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = "white";
                                   }}
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    setSelectedTemplateId(template.id);
-                                    setTimeout(() => {
-                                      setIsEditModalOpen(true);
-                                    }, 100);
+                                    handleArchive(template.id, false);
                                   }}
                                 >
-                                  <Pencil
+                                  <ArchiveRestore
                                     style={{ width: "1rem", height: "1rem" }}
                                   />
-                                  <span>Modifica</span>
+                                  <span>Ripristina</span>
                                 </button>
                               )}
                             </div>
@@ -340,7 +433,7 @@ export default function DeadlineTemplatesPage() {
                             {/* CARD */}
                             <div
                               className="p-4 border rounded-lg transition-colors bg-white hover:bg-gray-50"
-                              style={{ paddingRight: "9rem" }}
+                              style={{ paddingRight: "18rem" }}
                             >
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
@@ -348,11 +441,21 @@ export default function DeadlineTemplatesPage() {
                                     {template.title}
                                   </h4>
                                   {getScopeBadge(template.scope)}
-                                  {getTemplateBadge(template)}
+                                  {getRegionBadge(template.regions)}
+                                  {!template.active && (
+                                    <Badge variant="secondary">
+                                      Archiviato
+                                    </Badge>
+                                  )}
                                 </div>
                                 {template.description && (
                                   <p className="text-sm text-gray-600 mb-2">
                                     {template.description}
+                                  </p>
+                                )}
+                                {template.legalReference && (
+                                  <p className="text-sm text-blue-700 font-medium mb-2">
+                                    Rif. Normativo: {template.legalReference}
                                   </p>
                                 )}
                                 <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
@@ -391,68 +494,49 @@ export default function DeadlineTemplatesPage() {
         </CardContent>
       </Card>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-medium text-blue-900 mb-2">
-          Informazioni sui Template di Adempimenti
+      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+        <h3 className="font-medium text-indigo-900 mb-2">
+          Informazioni sui Template Globali
         </h3>
-        <ul className="text-sm text-blue-800 space-y-2">
+        <ul className="text-sm text-indigo-800 space-y-2">
           <li>
-            <strong>Template Globali:</strong> I template con badge "Globale"
-            sono predefiniti dal sistema per garantire conformità alle normative
-            nazionali. Solo l'amministratore del sito può modificarli per
-            mantenerli aggiornati con i cambiamenti normativi.
+            <strong>Template Nazionali:</strong> Visibili a tutte le
+            organizzazioni italiane, indipendentemente dalla regione.
           </li>
           <li>
-            <strong>Template Organizzazione:</strong> Puoi creare template
-            personalizzati specifici per la tua organizzazione (usa il pulsante
-            "Nuovo Adempimento"). Questi template possono essere modificati ed
-            eliminati in qualsiasi momento.
+            <strong>Template Regionali:</strong> Visibili solo alle
+            organizzazioni che hanno strutture nella regione specificata.
           </li>
           <li>
-            <strong>Scadenze Personalizzate:</strong> Per creare scadenze
-            specifiche non ricorrenti o personalizzate, vai alla sezione
-            Scadenze della struttura o persona interessata.
+            <strong>Riferimenti Normativi:</strong> Inserisci sempre il
+            riferimento normativo e il link alla fonte per garantire
+            tracciabilit� e compliance.
           </li>
           <li>
-            <strong>Usa i Template:</strong> I template servono per generare
-            automaticamente scadenze ricorrenti. Visualizza i dettagli dei
-            template globali per vedere riferimenti normativi e informazioni
-            sulla compliance.
+            <strong>Archiviazione:</strong> I template archiviati non sono pi�
+            visibili alle organizzazioni ma rimangono nel sistema per
+            tracciabilit� storica.
           </li>
         </ul>
       </div>
 
-      {/* Modali */}
-      <NewTemplateModal
-        organizationId={organizationId}
-        isOpen={isNewModalOpen}
-        onClose={() => setIsNewModalOpen(false)}
+      {selectedTemplateId && (
+        <EditGlobalTemplateModal
+          templateId={selectedTemplateId}
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setSelectedTemplateId("");
+          }}
+          onSuccess={loadTemplates}
+        />
+      )}
+
+      <CreateGlobalTemplateModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
         onSuccess={loadTemplates}
       />
-
-      {selectedTemplateId && (
-        <>
-          <EditTemplateModal
-            organizationId={organizationId}
-            templateId={selectedTemplateId}
-            isOpen={isEditModalOpen}
-            onClose={() => {
-              setIsEditModalOpen(false);
-              setSelectedTemplateId("");
-            }}
-            onSuccess={loadTemplates}
-          />
-          <ViewTemplateModal
-            organizationId={organizationId}
-            templateId={selectedTemplateId}
-            isOpen={isViewModalOpen}
-            onClose={() => {
-              setIsViewModalOpen(false);
-              setSelectedTemplateId("");
-            }}
-          />
-        </>
-      )}
     </div>
   );
 }

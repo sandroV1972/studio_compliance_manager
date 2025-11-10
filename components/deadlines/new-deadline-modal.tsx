@@ -822,7 +822,7 @@ export function NewDeadlineModal({
                   </Label>
                   <DatePicker
                     date={templateStartDate}
-                    setDate={setTemplateStartDate}
+                    onDateChange={setTemplateStartDate}
                   />
                   <p className="text-xs text-gray-500">
                     La prima scadenza sarà calcolata a partire da questa data
@@ -855,7 +855,7 @@ export function NewDeadlineModal({
                     <div className="space-y-2">
                       <DatePicker
                         date={templateEndDate}
-                        setDate={setTemplateEndDate}
+                        onDateChange={setTemplateEndDate}
                       />
                       <p className="text-xs text-gray-500">
                         Le scadenze verranno generate fino a questa data

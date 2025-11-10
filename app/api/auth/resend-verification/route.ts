@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendVerificationEmail } from "@/lib/email";
 import { nanoid } from "nanoid";
+import {
+  checkRateLimit,
+  RateLimitConfigs,
+  getIdentifier,
+  getRateLimitErrorMessage,
+} from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,6 +15,31 @@ export async function POST(request: NextRequest) {
 
     if (!email) {
       return NextResponse.json({ error: "Email richiesta" }, { status: 400 });
+    }
+
+    // Applica rate limiting
+    const identifier = getIdentifier(request, email);
+    const rateLimit = checkRateLimit(
+      identifier,
+      RateLimitConfigs.resendVerification,
+    );
+
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        {
+          error: getRateLimitErrorMessage(rateLimit.retryAfter!),
+          retryAfter: rateLimit.retryAfter,
+        },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Limit": rateLimit.limit.toString(),
+            "X-RateLimit-Remaining": rateLimit.remaining.toString(),
+            "X-RateLimit-Reset": new Date(rateLimit.reset).toISOString(),
+            "Retry-After": rateLimit.retryAfter!.toString(),
+          },
+        },
+      );
     }
 
     const user = await prisma.user.findUnique({

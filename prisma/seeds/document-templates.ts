@@ -8,7 +8,7 @@ export async function seedDocumentTemplates() {
   // Template documenti per STRUTTURE
   const structureTemplates = [
     {
-      scope: "STRUCTURE",
+      scope: "STRUCTURE" as const,
       category: "Sicurezza sul Lavoro",
       name: "DVR - Documento di Valutazione dei Rischi",
       description:
@@ -188,7 +188,7 @@ export async function seedDocumentTemplates() {
   // Template documenti per PERSONE
   const personTemplates = [
     {
-      scope: "PERSON",
+      scope: "PERSON" as const,
       category: "Assicurazioni",
       name: "Polizza RC Professionale",
       description:
@@ -384,8 +384,15 @@ export async function seedDocumentTemplates() {
       create: {
         id: `struct_${template.name.toLowerCase().replace(/\s+/g, "_")}`,
         ownerType: "GLOBAL",
-        scope: "STRUCTURE",
-        ...template,
+        scope: template.scope as any,
+        category: template.category,
+        name: template.name,
+        description: template.description,
+        isMandatory: template.isMandatory,
+        hasExpiry: template.hasExpiry,
+        legalReference: template.legalReference,
+        fileFormats: template.fileFormats,
+        reminderDays: template.reminderDays,
       },
     });
   }
@@ -404,8 +411,15 @@ export async function seedDocumentTemplates() {
       create: {
         id: `person_${template.name.toLowerCase().replace(/\s+/g, "_")}`,
         ownerType: "GLOBAL",
-        scope: "PERSON",
-        ...template,
+        scope: template.scope as any,
+        category: template.category,
+        name: template.name,
+        description: template.description,
+        isMandatory: template.isMandatory,
+        hasExpiry: template.hasExpiry,
+        legalReference: template.legalReference,
+        fileFormats: template.fileFormats,
+        reminderDays: template.reminderDays,
       },
     });
   }

@@ -26,15 +26,70 @@ export async function GET(
       return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
     }
 
-    // Recupera tutti i template: globali + quelli dell'organizzazione
-    const templates = await prisma.deadlineTemplate.findMany({
+    // Ottieni le regioni delle strutture dell'organizzazione tramite provincia
+    const structures = await prisma.structure.findMany({
+      where: { organizationId, active: true },
+      select: { province: true },
+    });
+
+    // Estrai province uniche e trova le regioni corrispondenti
+    const provinces = [
+      ...new Set(structures.map((s) => s.province).filter(Boolean)),
+    ] as string[];
+
+    let userRegions: string[] = [];
+    if (provinces.length > 0) {
+      const regionMappings = await prisma.provinceRegionMapping.findMany({
+        where: { provinceCode: { in: provinces } },
+        select: { regionName: true },
+      });
+      userRegions = [...new Set(regionMappings.map((m) => m.regionName))];
+    }
+
+    // Recupera TUTTI i template GLOBAL e ORG
+    const allTemplates = await prisma.deadlineTemplate.findMany({
       where: {
         OR: [
+          // Template globali attivi
           { ownerType: "GLOBAL", active: true },
+          // Template dell'organizzazione
           { ownerType: "ORG", organizationId: organizationId, active: true },
         ],
       },
       orderBy: [{ complianceType: "asc" }, { title: "asc" }],
+    });
+
+    // Filtra i template in base alle regioni (solo per GLOBAL)
+    const templates = allTemplates.filter((template) => {
+      // Template ORG: sempre inclusi
+      if (template.ownerType === "ORG") {
+        return true;
+      }
+
+      // Template GLOBAL senza regioni specifiche: validi per tutta Italia
+      if (!template.regions) {
+        return true;
+      }
+
+      // Template GLOBAL con regioni specifiche: verifica se almeno una regione corrisponde
+      try {
+        const templateRegions = JSON.parse(template.regions) as string[];
+        if (!Array.isArray(templateRegions) || templateRegions.length === 0) {
+          // Se regions è vuoto o non valido, consideriamolo nazionale
+          return true;
+        }
+        // Verifica se c'è almeno una regione in comune
+        return userRegions.some((userRegion) =>
+          templateRegions.includes(userRegion),
+        );
+      } catch (error) {
+        // Se il parsing fallisce, consideriamo il template nazionale
+        console.warn(
+          `Errore parsing regions per template ${template.id}:`,
+          error,
+        );
+        return true;
+      }
     });
 
     return NextResponse.json({ templates });

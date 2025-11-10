@@ -16,7 +16,7 @@ import Link from "next/link";
 export default async function ProfilePage() {
   const session = await auth();
 
-  if (!session?.user) {
+  if (!session?.user?.email) {
     redirect("/auth/login");
   }
 
@@ -42,7 +42,14 @@ export default async function ProfilePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ProfileForm user={session.user} />
+            <ProfileForm
+              user={{
+                id: session.user.id,
+                email: session.user.email,
+                name: session.user.name,
+                isSuperAdmin: session.user.isSuperAdmin,
+              }}
+            />
           </CardContent>
         </Card>
 

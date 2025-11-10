@@ -2,22 +2,67 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-export async function PATCH(
+// GET - Ottieni singolo template GLOBAL
+export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await auth();
 
     if (!session?.user?.isSuperAdmin) {
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const template = await prisma.deadlineTemplate.findUnique({
+      where: { id, ownerType: "GLOBAL" },
+    });
+
+    if (!template) {
       return NextResponse.json(
-        { error: "Non autorizzato" },
-        { status: 401 }
+        { error: "Template non trovato" },
+        { status: 404 },
       );
+    }
+
+    return NextResponse.json({ template });
+  } catch (error) {
+    console.error("Error loading global template:", error);
+    return NextResponse.json(
+      { error: "Errore durante il caricamento del template" },
+      { status: 500 },
+    );
+  }
+}
+
+// PATCH - Aggiorna template GLOBAL
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const session = await auth();
+
+    if (!session?.user?.isSuperAdmin) {
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
     }
 
     const { id } = await params;
     const body = await request.json();
+
+    // Gestisci regions: può arrivare come stringa JSON o come array
+    let regionsJson = null;
+    if (body.regions) {
+      if (typeof body.regions === "string") {
+        // Già in formato JSON
+        regionsJson = body.regions;
+      } else if (Array.isArray(body.regions) && body.regions.length > 0) {
+        // Array da convertire in JSON
+        regionsJson = JSON.stringify(body.regions);
+      }
+    }
 
     const template = await prisma.deadlineTemplate.update({
       where: { id },
@@ -30,11 +75,13 @@ export async function PATCH(
         recurrenceEvery: body.recurrenceEvery,
         firstDueOffsetDays: body.firstDueOffsetDays || 0,
         anchor: body.anchor,
+        requiredDocumentName: body.requiredDocumentName || null,
         legalReference: body.legalReference || null,
         sourceUrl: body.sourceUrl || null,
         effectiveFrom: body.effectiveFrom || null,
         effectiveTo: body.effectiveTo || null,
         country: body.country || "IT",
+        regions: regionsJson,
         notes: body.notes || null,
         active: body.active ?? true,
       },
@@ -45,23 +92,20 @@ export async function PATCH(
     console.error("Error updating global template:", error);
     return NextResponse.json(
       { error: "Errore durante l'aggiornamento del template" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await auth();
 
     if (!session?.user?.isSuperAdmin) {
-      return NextResponse.json(
-        { error: "Non autorizzato" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
     }
 
     const { id } = await params;
@@ -75,7 +119,7 @@ export async function DELETE(
     console.error("Error deleting global template:", error);
     return NextResponse.json(
       { error: "Errore durante l'eliminazione del template" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

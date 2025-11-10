@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import {
 import Link from "next/link";
 import { AlertCircle, Mail } from "lucide-react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -177,7 +177,9 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+              </div>
               <Input
                 id="password"
                 type="password"
@@ -186,6 +188,12 @@ export default function LoginPage() {
                 required
                 disabled={loading}
               />
+              <Link
+                href="/auth/forgot-password"
+                className="text-xs text-purple-700 hover:text-purple-900 font-medium"
+              >
+                Password dimenticata?
+              </Link>
             </div>
             {error && (
               <div className="flex items-start gap-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-4">
@@ -255,5 +263,25 @@ export default function LoginPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50/20 px-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-2xl font-bold">
+                Caricamento...
+              </CardTitle>
+            </CardHeader>
+          </Card>
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

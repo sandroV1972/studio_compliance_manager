@@ -1,7 +1,16 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import {
+  Search,
+  LayoutDashboard,
+  Users,
+  Building2,
+  FileCheck2,
+  ClipboardCheck,
+  LogOut,
+} from "lucide-react";
+import { AdminSettingsMenu } from "@/components/admin/admin-settings-menu";
 
 export default async function AdminLayout({
   children,
@@ -19,32 +28,42 @@ export default async function AdminLayout({
       <header className="border-b bg-gradient-to-r from-indigo-600 to-purple-600 sticky top-0 z-50 shadow-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-6">
-            <Link href="/admin" className="text-xl font-bold text-white hover:text-indigo-100 transition-colors">
-              Admin Panel
+            <Link
+              href="/admin"
+              className="flex items-center gap-3 text-xl font-bold text-white hover:text-indigo-100 transition-colors group"
+            >
+              <div className="p-2 bg-white/20 rounded-lg group-hover:bg-white/30 transition-colors">
+                <ClipboardCheck className="h-6 w-6" />
+              </div>
+              <span>Admin Panel</span>
             </Link>
-            <nav className="flex items-center gap-4">
+            <nav className="flex items-center gap-2">
               <Link
                 href="/admin"
-                className="text-sm text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-all"
+                className="flex items-center gap-2 text-sm text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-all"
               >
+                <LayoutDashboard className="h-4 w-4" />
                 Dashboard
               </Link>
               <Link
                 href="/admin/users"
-                className="text-sm text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-all"
+                className="flex items-center gap-2 text-sm text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-all"
               >
+                <Users className="h-4 w-4" />
                 Utenti
               </Link>
               <Link
                 href="/admin/organizations"
-                className="text-sm text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-all"
+                className="flex items-center gap-2 text-sm text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-all"
               >
+                <Building2 className="h-4 w-4" />
                 Organizzazioni
               </Link>
               <Link
-                href="/admin/global"
-                className="text-sm text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-all"
+                href="/admin/global-templates"
+                className="flex items-center gap-2 text-sm text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-all"
               >
+                <FileCheck2 className="h-4 w-4" />
                 Template Globali
               </Link>
             </nav>
@@ -58,9 +77,15 @@ export default async function AdminLayout({
               Ricerca
             </Link>
             <div className="h-8 w-px bg-white/20"></div>
-            <span className="text-sm font-semibold text-white bg-white/20 px-3 py-1 rounded-full">Super Admin</span>
-            <span className="text-sm text-white/90">{session.user.email}</span>
-            <Link href="/auth/logout" className="text-sm text-white bg-red-500 hover:bg-red-600 px-4 py-2 rounded-md transition-colors font-medium">
+            <AdminSettingsMenu
+              userEmail={session.user.email || ""}
+              userName={session.user.name}
+            />
+            <Link
+              href="/auth/logout"
+              className="flex items-center gap-2 text-sm text-white bg-red-500 hover:bg-red-600 px-4 py-2 rounded-md transition-colors font-medium"
+            >
+              <LogOut className="h-4 w-4" />
               Logout
             </Link>
           </div>

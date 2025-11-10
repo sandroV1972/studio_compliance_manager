@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import { seedDocumentTemplates } from "./seeds/document-templates";
+import { seedProvinceRegionMapping } from "./seeds/province-region-mapping";
 
 const prisma = new PrismaClient();
 
@@ -716,6 +717,9 @@ async function main() {
   }
 
   console.log("✅ Demo Role Assignments created");
+
+  // Seed province-region mapping
+  await seedProvinceRegionMapping();
 
   // Seed document templates
   await seedDocumentTemplates();

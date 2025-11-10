@@ -26,6 +26,7 @@ import {
   Clock,
   CheckCircle2,
 } from "lucide-react";
+import { DeadlineCalendar } from "@/components/structures/deadline-calendar";
 
 interface Structure {
   id: string;
@@ -46,12 +47,13 @@ interface Structure {
 
 interface DeadlineInstance {
   id: string;
+  title: string;
   dueDate: string;
-  status: string;
+  status: "PENDING" | "DONE" | "OVERDUE" | "CANCELLED";
   notes: string | null;
-  deadlineTemplate: {
-    name: string;
-    description: string | null;
+  template?: {
+    title: string;
+    complianceType: string;
   };
 }
 
@@ -64,8 +66,8 @@ export default function StructureDashboard() {
   const [upcomingDeadlines, setUpcomingDeadlines] = useState<
     DeadlineInstance[]
   >([]);
+  const [allDeadlines, setAllDeadlines] = useState<DeadlineInstance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
 
   useEffect(() => {
     loadData();
@@ -73,9 +75,10 @@ export default function StructureDashboard() {
 
   const loadData = async () => {
     try {
-      const [structureRes, deadlinesRes] = await Promise.all([
+      const [structureRes, upcomingRes, allRes] = await Promise.all([
         fetch(`/api/structures/${structureId}`),
         fetch(`/api/structures/${structureId}/deadlines?upcoming=true`),
+        fetch(`/api/structures/${structureId}/deadlines`),
       ]);
 
       if (!structureRes.ok) throw new Error("Errore nel caricamento");
@@ -83,9 +86,14 @@ export default function StructureDashboard() {
       const structureData = await structureRes.json();
       setStructure(structureData);
 
-      if (deadlinesRes.ok) {
-        const deadlinesData = await deadlinesRes.json();
+      if (upcomingRes.ok) {
+        const deadlinesData = await upcomingRes.json();
         setUpcomingDeadlines(deadlinesData.slice(0, 5));
+      }
+
+      if (allRes.ok) {
+        const allDeadlinesData = await allRes.json();
+        setAllDeadlines(allDeadlinesData);
       }
     } catch (error) {
       console.error("Errore:", error);
@@ -283,27 +291,17 @@ export default function StructureDashboard() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left Column - Calendar & Info */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Calendar Placeholder */}
+          {/* Calendar */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CalendarIcon className="h-5 w-5" />
                 Calendario Scadenze
               </CardTitle>
-              <CardDescription>
-                Visualizza le scadenze del mese corrente
-              </CardDescription>
+              <CardDescription>Visualizza le scadenze per mese</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-80 bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg border-2 border-dashed border-purple-200 flex items-center justify-center">
-                <div className="text-center text-muted-foreground">
-                  <CalendarIcon className="h-16 w-16 mx-auto mb-4 text-purple-300" />
-                  <p className="text-lg font-medium">Calendario Interattivo</p>
-                  <p className="text-sm">
-                    Visualizzazione calendario in sviluppo
-                  </p>
-                </div>
-              </div>
+              <DeadlineCalendar deadlines={allDeadlines} />
             </CardContent>
           </Card>
 
@@ -376,7 +374,7 @@ export default function StructureDashboard() {
                       >
                         <div className="flex items-start justify-between mb-1">
                           <h4 className="font-medium text-sm">
-                            {deadline.deadlineTemplate.name}
+                            {deadline.title}
                           </h4>
                           {getDeadlineStatusBadge(deadline.status)}
                         </div>

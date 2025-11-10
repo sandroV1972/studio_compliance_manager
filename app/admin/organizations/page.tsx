@@ -1,13 +1,39 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatDate } from "@/lib/utils";
 import Link from "next/link";
-import { Building2, Users, UserCircle, MapPin, Calendar, Eye } from "lucide-react";
+import {
+  Building2,
+  Users,
+  UserCircle,
+  MapPin,
+  Calendar,
+  Eye,
+  Clock,
+  AlertTriangle,
+} from "lucide-react";
 
 async function getAllOrganizations() {
+  const now = new Date();
+  const thirtyDaysFromNow = new Date();
+  thirtyDaysFromNow.setDate(now.getDate() + 30);
+
   const organizations = await prisma.organization.findMany({
     orderBy: {
       createdAt: "desc",
@@ -31,10 +57,37 @@ async function getAllOrganizations() {
           deadlineInstances: true,
         },
       },
+      deadlineInstances: {
+        select: {
+          dueDate: true,
+          status: true,
+        },
+      },
     },
   });
 
-  return organizations;
+  // Calcola scadenze prossime e scadute per ogni organizzazione
+  const orgsWithDeadlines = organizations.map((org) => {
+    const upcomingDeadlines = org.deadlineInstances.filter(
+      (d) =>
+        d.status === "PENDING" &&
+        d.dueDate >= now &&
+        d.dueDate <= thirtyDaysFromNow,
+    ).length;
+
+    const overdueDeadlines = org.deadlineInstances.filter(
+      (d) =>
+        d.status === "OVERDUE" || (d.status === "PENDING" && d.dueDate < now),
+    ).length;
+
+    return {
+      ...org,
+      upcomingDeadlines,
+      overdueDeadlines,
+    };
+  });
+
+  return orgsWithDeadlines;
 }
 
 export default async function AdminOrganizationsPage() {
@@ -50,7 +103,9 @@ export default async function AdminOrganizationsPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Gestione Organizzazioni</h2>
+          <h2 className="text-3xl font-bold tracking-tight">
+            Gestione Organizzazioni
+          </h2>
           <p className="text-muted-foreground">
             Tutte le organizzazioni del sistema ({organizations.length} totali)
           </p>
@@ -60,7 +115,9 @@ export default async function AdminOrganizationsPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Totale Organizzazioni</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Totale Organizzazioni
+            </CardTitle>
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -82,7 +139,9 @@ export default async function AdminOrganizationsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Totale Personale</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Totale Personale
+            </CardTitle>
             <UserCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -94,12 +153,17 @@ export default async function AdminOrganizationsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Totale Strutture</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Totale Strutture
+            </CardTitle>
             <MapPin className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {organizations.reduce((sum, org) => sum + org._count.structures, 0)}
+              {organizations.reduce(
+                (sum, org) => sum + org._count.structures,
+                0,
+              )}
             </div>
           </CardContent>
         </Card>
@@ -109,7 +173,8 @@ export default async function AdminOrganizationsPage() {
         <CardHeader>
           <CardTitle>Tutte le Organizzazioni</CardTitle>
           <CardDescription>
-            Lista completa delle organizzazioni registrate con dettagli e statistiche
+            Lista completa delle organizzazioni registrate con dettagli e
+            statistiche
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -121,6 +186,8 @@ export default async function AdminOrganizationsPage() {
                 <TableHead className="text-center">Personale</TableHead>
                 <TableHead className="text-center">Strutture</TableHead>
                 <TableHead className="text-center">Scadenze</TableHead>
+                <TableHead className="text-center">Prossime (30gg)</TableHead>
+                <TableHead className="text-center">Scadute</TableHead>
                 <TableHead>Data Creazione</TableHead>
                 <TableHead className="text-right">Azioni</TableHead>
               </TableRow>
@@ -128,7 +195,10 @@ export default async function AdminOrganizationsPage() {
             <TableBody>
               {organizations.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={9}
+                    className="text-center text-muted-foreground"
+                  >
                     Nessuna organizzazione trovata
                   </TableCell>
                 </TableRow>
@@ -145,9 +215,10 @@ export default async function AdminOrganizationsPage() {
                                 key={orgUser.id}
                                 className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-700"
                               >
-                                {orgUser.user.name || orgUser.user.email.split('@')[0]}
-                                {orgUser.role === 'OWNER' && ' 👑'}
-                                {orgUser.user.isSuperAdmin && ' ⭐'}
+                                {orgUser.user.name ||
+                                  orgUser.user.email.split("@")[0]}
+                                {orgUser.role === "OWNER" && " 👑"}
+                                {orgUser.user.isSuperAdmin && " ⭐"}
                               </span>
                             ))}
                             {org.users.length > 3 && (
@@ -177,6 +248,28 @@ export default async function AdminOrganizationsPage() {
                     <TableCell className="text-center">
                       <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-purple-100 text-purple-800 font-semibold text-sm">
                         {org._count.deadlineInstances}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span
+                        className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-semibold text-sm ${
+                          org.upcomingDeadlines > 0
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-gray-100 text-gray-500"
+                        }`}
+                      >
+                        {org.upcomingDeadlines}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span
+                        className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-semibold text-sm ${
+                          org.overdueDeadlines > 0
+                            ? "bg-red-100 text-red-800"
+                            : "bg-gray-100 text-gray-500"
+                        }`}
+                      >
+                        {org.overdueDeadlines}
                       </span>
                     </TableCell>
                     <TableCell>

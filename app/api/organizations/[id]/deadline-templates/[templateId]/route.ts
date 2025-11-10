@@ -95,8 +95,18 @@ export async function PATCH(
       );
     }
 
-    // Verifica che il template appartenga a questa organizzazione o sia GLOBAL
-    // I template GLOBAL possono essere modificati dagli admin per aggiornare le normative
+    // NUOVA LOGICA: Solo SuperAdmin può modificare template GLOBAL
+    if (existingTemplate.ownerType === "GLOBAL" && !session.user.isSuperAdmin) {
+      return NextResponse.json(
+        {
+          error:
+            "Solo l'amministratore del sito può modificare i template globali. Per adempimenti personalizzati, crea una scadenza personalizzata.",
+        },
+        { status: 403 },
+      );
+    }
+
+    // Verifica che i template ORG appartengano all'organizzazione corretta
     if (
       existingTemplate.ownerType === "ORG" &&
       existingTemplate.organizationId !== organizationId
@@ -192,8 +202,18 @@ export async function DELETE(
       );
     }
 
-    // Verifica che il template appartenga a questa organizzazione o sia GLOBAL
-    // I template GLOBAL possono essere eliminati dagli admin
+    // NUOVA LOGICA: Solo SuperAdmin può eliminare template GLOBAL
+    if (existingTemplate.ownerType === "GLOBAL" && !session.user.isSuperAdmin) {
+      return NextResponse.json(
+        {
+          error:
+            "Solo l'amministratore del sito può eliminare i template globali.",
+        },
+        { status: 403 },
+      );
+    }
+
+    // Verifica che i template ORG appartengano all'organizzazione corretta
     if (
       existingTemplate.ownerType === "ORG" &&
       existingTemplate.organizationId !== organizationId

@@ -142,6 +142,19 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+model PasswordResetToken {
+  id      String   @id @default(cuid())
+  userId  String
+  token   String   @unique
+  expires DateTime
+  used    Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId, used])
+}
+
 model Organization {
   id         String           @id @default(cuid())
   name       String
@@ -315,6 +328,7 @@ model DeadlineTemplate {
   effectiveFrom        DateTime?
   effectiveTo          DateTime?
   country              String?           @default("IT")
+  regions              String? // JSON array di regioni italiane (es: '["Lombardia","Lazio"]', NULL o '[]' per nazionale)
   notes                String?
 
   organization Organization?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -493,4 +507,18 @@ model AuditLog {
 
   @@index([organizationId, createdAt])
   @@index([userId, createdAt])
+}
+
+model ProvinceRegionMapping {
+  id           String @id @default(cuid())
+  provinceCode String @unique // Sigla provincia (es: "MI", "RM", "NA")
+  provinceName String // Nome provincia (es: "Milano", "Roma", "Napoli")
+  regionName   String // Nome regione (es: "Lombardia", "Lazio", "Campania")
+  country      String @default("IT")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([provinceCode])
+  @@index([regionName])
 }
