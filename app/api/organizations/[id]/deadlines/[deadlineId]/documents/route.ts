@@ -7,7 +7,7 @@ import { existsSync } from "fs";
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string; structureId: string }> },
+  { params }: { params: Promise<{ id: string; deadlineId: string }> },
 ) {
   try {
     const session = await auth();
@@ -15,7 +15,7 @@ export async function GET(
       return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
     }
 
-    const { id: organizationId, structureId } = await params;
+    const { id: organizationId, deadlineId } = await params;
 
     // Verifica che l'utente abbia accesso a questa organizzazione
     const orgUser = await prisma.organizationUser.findFirst({
@@ -29,89 +29,27 @@ export async function GET(
       return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
     }
 
-    // Verifica che la struttura appartenga all'organizzazione
-    const structure = await prisma.structure.findFirst({
+    // Verifica che la scadenza appartenga all'organizzazione
+    const deadline = await prisma.deadlineInstance.findFirst({
       where: {
-        id: structureId,
+        id: deadlineId,
         organizationId: organizationId,
       },
     });
 
-    if (!structure) {
+    if (!deadline) {
       return NextResponse.json(
-        { error: "Struttura non trovata" },
+        { error: "Scadenza non trovata" },
         { status: 404 },
       );
     }
 
-    // Recuperiamo:
-    // 1. ID delle deadline della struttura
-    // 2. ID delle deadline delle persone che lavorano nella struttura
-    const structureDeadlines = await prisma.deadlineInstance.findMany({
-      where: {
-        structureId: structureId,
-        organizationId: organizationId,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    // Trova le persone associate a questa struttura
-    const personStructures = await prisma.personStructure.findMany({
-      where: {
-        structureId: structureId,
-      },
-      select: {
-        personId: true,
-      },
-    });
-
-    const personIds = personStructures.map((ps) => ps.personId);
-
-    // Trova le deadline delle persone associate alla struttura
-    const personDeadlines = await prisma.deadlineInstance.findMany({
-      where: {
-        personId: {
-          in: personIds,
-        },
-        organizationId: organizationId,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    const allDeadlineIds = [
-      ...structureDeadlines.map((d) => d.id),
-      ...personDeadlines.map((d) => d.id),
-    ];
-
-    // Recupera i documenti:
-    // 1. Documenti diretti della struttura (ownerType = STRUCTURE)
-    // 2. Documenti diretti delle persone (ownerType = PERSON)
-    // 3. Documenti delle deadline (ownerType = DEADLINE)
+    // Recupera i documenti
     const documents = await prisma.document.findMany({
       where: {
         organizationId: organizationId,
-        OR: [
-          {
-            ownerType: "STRUCTURE",
-            ownerId: structureId,
-          },
-          {
-            ownerType: "PERSON",
-            ownerId: {
-              in: personIds,
-            },
-          },
-          {
-            ownerType: "DEADLINE",
-            ownerId: {
-              in: allDeadlineIds,
-            },
-          },
-        ],
+        ownerType: "DEADLINE",
+        ownerId: deadlineId,
       },
       include: {
         documentTemplate: true,
@@ -130,7 +68,7 @@ export async function GET(
 
     return NextResponse.json({ documents });
   } catch (error) {
-    console.error("Errore recupero documenti struttura:", error);
+    console.error("Errore recupero documenti scadenza:", error);
     return NextResponse.json(
       { error: "Errore nel recupero dei documenti" },
       { status: 500 },
@@ -140,7 +78,7 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string; structureId: string }> },
+  { params }: { params: Promise<{ id: string; deadlineId: string }> },
 ) {
   try {
     const session = await auth();
@@ -148,7 +86,7 @@ export async function POST(
       return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
     }
 
-    const { id: organizationId, structureId } = await params;
+    const { id: organizationId, deadlineId } = await params;
 
     // Verifica che l'utente abbia accesso a questa organizzazione
     const orgUser = await prisma.organizationUser.findFirst({
@@ -162,17 +100,17 @@ export async function POST(
       return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
     }
 
-    // Verifica che la struttura appartenga all'organizzazione
-    const structure = await prisma.structure.findFirst({
+    // Verifica che la scadenza appartenga all'organizzazione
+    const deadline = await prisma.deadlineInstance.findFirst({
       where: {
-        id: structureId,
+        id: deadlineId,
         organizationId: organizationId,
       },
     });
 
-    if (!structure) {
+    if (!deadline) {
       return NextResponse.json(
-        { error: "Struttura non trovata" },
+        { error: "Scadenza non trovata" },
         { status: 404 },
       );
     }
@@ -196,9 +134,9 @@ export async function POST(
         where: { id: templateId },
       });
 
-      if (!template || template.scope !== "STRUCTURE") {
+      if (!template) {
         return NextResponse.json(
-          { error: "Template non valido per strutture" },
+          { error: "Template non trovato" },
           { status: 400 },
         );
       }
@@ -235,8 +173,8 @@ export async function POST(
       process.cwd(),
       "uploads",
       organizationId,
-      "structures",
-      structureId,
+      "deadlines",
+      deadlineId,
     );
     if (!existsSync(uploadDir)) {
       await mkdir(uploadDir, { recursive: true });
@@ -261,8 +199,9 @@ export async function POST(
       data: {
         organizationId: organizationId,
         templateId: templateId || null,
-        ownerType: "STRUCTURE",
-        ownerId: structureId,
+        ownerType: "DEADLINE",
+        ownerId: deadlineId,
+        deadlineId: deadlineId, // Campo esplicito per la relazione
         fileName: file.name,
         fileType: file.type || null,
         fileSize: file.size,
@@ -294,15 +233,19 @@ export async function POST(
         entityId: document.id,
         metadata: {
           fileName: file.name,
-          structureId: structureId,
+          deadlineId: deadlineId,
           templateId: templateId,
         },
       },
     });
 
+    // NOTA: Non marchiamo più automaticamente la scadenza come completata
+    // L'utente deve farlo manualmente dalla UI
+    // Questo permette di caricare più documenti o sostituire documenti anche per scadenze completate
+
     return NextResponse.json({ document });
   } catch (error) {
-    console.error("Errore upload documento struttura:", error);
+    console.error("Errore upload documento scadenza:", error);
     return NextResponse.json(
       { error: "Errore nell'upload del documento" },
       { status: 500 },

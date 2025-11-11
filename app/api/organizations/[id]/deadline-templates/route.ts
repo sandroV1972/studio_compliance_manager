@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { createTemplateSchema } from "@/lib/validation/template";
+import { validateRequest } from "@/lib/validation/validate";
 
 export async function GET(
   request: Request,
@@ -127,6 +129,13 @@ export async function POST(
     }
 
     const body = await request.json();
+
+    // Validazione con Zod
+    const validation = validateRequest(createTemplateSchema, body);
+    if (!validation.success) {
+      return validation.error;
+    }
+
     const {
       title,
       complianceType,
@@ -137,15 +146,7 @@ export async function POST(
       firstDueOffsetDays,
       anchor,
       requiredDocumentName,
-    } = body;
-
-    // Validazione
-    if (!title || !complianceType || !scope || !recurrenceUnit || !anchor) {
-      return NextResponse.json(
-        { error: "Campi obbligatori mancanti" },
-        { status: 400 },
-      );
-    }
+    } = validation.data;
 
     // Crea il nuovo template
     const template = await prisma.deadlineTemplate.create({
@@ -157,8 +158,8 @@ export async function POST(
         ownerType: "ORG",
         organizationId,
         recurrenceUnit,
-        recurrenceEvery: parseInt(recurrenceEvery) || 1,
-        firstDueOffsetDays: parseInt(firstDueOffsetDays) || 0,
+        recurrenceEvery,
+        firstDueOffsetDays,
         anchor,
         requiredDocumentName: requiredDocumentName || null,
         active: true,

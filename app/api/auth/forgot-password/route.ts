@@ -8,15 +8,20 @@ import {
   getIdentifier,
   getRateLimitErrorMessage,
 } from "@/lib/rate-limit";
+import { forgotPasswordSchema } from "@/lib/validation/auth";
+import { validateRequest } from "@/lib/validation/validate";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email } = body;
 
-    if (!email) {
-      return NextResponse.json({ error: "Email richiesta" }, { status: 400 });
+    // Validazione con Zod
+    const validation = validateRequest(forgotPasswordSchema, body);
+    if (!validation.success) {
+      return validation.error;
     }
+
+    const { email } = validation.data;
 
     // Applica rate limiting
     const identifier = getIdentifier(request, email);
@@ -45,7 +50,7 @@ export async function POST(request: Request) {
 
     // Verifica se l'utente esiste
     const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email },
     });
 
     // Per motivi di sicurezza, restituisci sempre successo anche se l'email non esiste

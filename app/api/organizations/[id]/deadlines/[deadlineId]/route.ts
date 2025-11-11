@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { updateDeadlineSchema } from "@/lib/validation/deadline";
+import { validateRequest } from "@/lib/validation/validate";
 
 export async function GET(
   request: Request,
@@ -157,23 +159,15 @@ export async function PATCH(
     }
 
     const body = await request.json();
+
+    // Validazione con Zod
+    const validation = validateRequest(updateDeadlineSchema, body);
+    if (!validation.success || !validation.data) {
+      return validation.error;
+    }
+
     const { title, dueDate, personId, structureId, notes, status, reminders } =
-      body;
-
-    // Validazioni
-    if (title !== undefined && !title?.trim()) {
-      return NextResponse.json(
-        { error: "Il titolo è obbligatorio" },
-        { status: 400 },
-      );
-    }
-
-    if (dueDate !== undefined && !dueDate) {
-      return NextResponse.json(
-        { error: "La data di scadenza è obbligatoria" },
-        { status: 400 },
-      );
-    }
+      validation.data;
 
     // Se personId o structureId vengono aggiornati, verifica che appartengano all'organizzazione
     if (personId !== undefined && personId !== null) {

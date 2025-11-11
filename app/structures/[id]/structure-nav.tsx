@@ -85,12 +85,6 @@ export function StructureNav({ structureId }: StructureNavProps) {
       isActive: pathname?.startsWith(`/structures/${structureId}/deadlines`),
     },
     {
-      href: `/structures/${structureId}/documents`,
-      label: "Documenti",
-      icon: FileText,
-      isActive: pathname?.startsWith(`/structures/${structureId}/documents`),
-    },
-    {
       href: `/structures/${structureId}/reports`,
       label: "Report",
       icon: BarChart3,

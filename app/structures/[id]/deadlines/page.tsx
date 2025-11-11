@@ -10,19 +10,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Calendar,
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-  Plus,
-  Edit,
-  Settings,
-} from "lucide-react";
+import { Calendar, Plus, Edit, Settings } from "lucide-react";
 import Link from "next/link";
 import { NewDeadlineModal } from "@/components/deadlines/new-deadline-modal";
 import EditDeadlineModal from "@/components/deadlines/edit-deadline-modal";
+import { DeadlineDocumentsBadge } from "@/components/deadlines/deadline-documents-badge";
 
 interface Deadline {
   id: string;
@@ -31,7 +23,15 @@ interface Deadline {
   status: string;
   person: { id: string; firstName: string; lastName: string } | null;
   structure: { id: string; name: string } | null;
-  template: { id: string; title: string; complianceType: string } | null;
+  template: {
+    id: string;
+    title: string;
+    complianceType: string;
+    requiredDocumentName: string | null;
+  } | null;
+  _count?: {
+    documents?: number;
+  };
 }
 
 export default function DeadlinesPage() {
@@ -68,7 +68,7 @@ export default function DeadlinesPage() {
   const loadDeadlines = async () => {
     try {
       const response = await fetch(
-        `/api/organizations/${organizationId}/deadlines`,
+        `/api/organizations/${organizationId}/deadlines?nextOccurrenceOnly=true`,
       );
       if (!response.ok) throw new Error("Errore nel caricamento");
       const data = await response.json();
@@ -96,31 +96,25 @@ export default function DeadlinesPage() {
     loadDeadlines(); // Ricarica le scadenze dopo la modifica
   };
 
-  const getStatusBadge = (status: string, dueDate: string) => {
+  const getStatusInfo = (status: string, dueDate: string) => {
     const isPast = new Date(dueDate) < new Date();
 
     if (status === "DONE") {
-      return (
-        <Badge className="bg-green-500 text-white">
-          <CheckCircle2 className="h-3 w-3 mr-1" />
-          Completata
-        </Badge>
-      );
+      return {
+        bgColor: "bg-green-500",
+        label: "Completata",
+      };
     }
     if (status === "PENDING" && isPast) {
-      return (
-        <Badge className="bg-red-500 text-white">
-          <AlertCircle className="h-3 w-3 mr-1" />
-          In ritardo
-        </Badge>
-      );
+      return {
+        bgColor: "bg-red-500",
+        label: "In ritardo",
+      };
     }
-    return (
-      <Badge className="bg-yellow-500 text-white">
-        <Clock className="h-3 w-3 mr-1" />
-        In sospeso
-      </Badge>
-    );
+    return {
+      bgColor: "bg-yellow-500",
+      label: "In sospeso",
+    };
   };
 
   const formatDate = (date: string) => {
@@ -192,51 +186,79 @@ export default function DeadlinesPage() {
             </p>
           ) : (
             <div className="space-y-4">
-              {deadlines.map((deadline) => (
-                <div
-                  key={deadline.id}
-                  className="flex items-start justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex-1">
-                    <div className="font-medium text-lg">{deadline.title}</div>
-                    {deadline.template && (
-                      <div className="text-sm text-muted-foreground">
-                        {deadline.template.title} -{" "}
-                        {deadline.template.complianceType}
+              {deadlines.map((deadline) => {
+                const statusInfo = getStatusInfo(
+                  deadline.status,
+                  deadline.dueDate,
+                );
+                return (
+                  <div
+                    key={deadline.id}
+                    className="relative flex items-start justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors overflow-hidden"
+                  >
+                    {/* Fascia colorata a destra */}
+                    <div
+                      className={`absolute top-0 right-0 bottom-0 w-1.5 ${statusInfo.bgColor}`}
+                    />
+
+                    <div className="flex-1 pr-4">
+                      <div className="font-medium text-lg">
+                        {deadline.title}
                       </div>
-                    )}
-                    {deadline.person && (
-                      <div className="text-sm text-muted-foreground">
-                        Persona: {deadline.person.firstName}{" "}
-                        {deadline.person.lastName}
+                      {deadline.template && (
+                        <div className="text-sm text-muted-foreground">
+                          {deadline.template.title} -{" "}
+                          {deadline.template.complianceType}
+                        </div>
+                      )}
+                      {deadline.person && (
+                        <div className="text-sm text-muted-foreground">
+                          Persona: {deadline.person.firstName}{" "}
+                          {deadline.person.lastName}
+                        </div>
+                      )}
+                      {deadline.structure && (
+                        <div className="text-sm text-muted-foreground">
+                          Struttura: {deadline.structure.name}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 mt-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">
+                          {formatDate(deadline.dueDate)}
+                        </span>
                       </div>
-                    )}
-                    {deadline.structure && (
-                      <div className="text-sm text-muted-foreground">
-                        Struttura: {deadline.structure.name}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 mt-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">
-                        {formatDate(deadline.dueDate)}
-                      </span>
+                      {/* Bottone documenti in basso */}
+                      {deadline.template?.requiredDocumentName && (
+                        <div className="mt-3">
+                          <DeadlineDocumentsBadge
+                            organizationId={organizationId}
+                            deadlineId={deadline.id}
+                            requiredDocumentName={
+                              deadline.template.requiredDocumentName
+                            }
+                            structureId={structureId}
+                            structureName={deadline.structure?.name || ""}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Solo bottone Modifica a destra */}
+                    <div className="flex items-start">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditClick(deadline.id)}
+                        className="flex items-center gap-2"
+                      >
+                        <Edit className="h-4 w-4" />
+                        Modifica
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {getStatusBadge(deadline.status, deadline.dueDate)}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditClick(deadline.id)}
-                      className="flex items-center gap-2"
-                    >
-                      <Edit className="h-4 w-4" />
-                      Modifica
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

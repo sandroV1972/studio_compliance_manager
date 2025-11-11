@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { generateFromTemplateSchema } from "@/lib/validation/deadline";
+import { validateRequest } from "@/lib/validation/validate";
 
 export async function POST(
   request: Request,
@@ -27,35 +29,30 @@ export async function POST(
     }
 
     const body = await request.json();
-    const {
-      templateId,
-      targetType, // "PERSON" | "STRUCTURE" | "ALL_PEOPLE" | "ALL_STRUCTURES"
-      targetId, // ID della persona o struttura (se targetType è PERSON o STRUCTURE)
-      startDate, // Data di inizio per il calcolo della prima scadenza
-      recurrenceEndDate, // Data opzionale di fine ricorrenza (null = infinito)
-    } = body;
 
-    // Validazioni
-    if (!templateId) {
-      return NextResponse.json(
-        { error: "Template ID è obbligatorio" },
-        { status: 400 },
+    // Log dei dati ricevuti per debug
+    console.log(
+      "[Generate from template] Body ricevuto:",
+      JSON.stringify(body, null, 2),
+    );
+
+    // Validazione con Zod
+    const validation = validateRequest(generateFromTemplateSchema, body);
+    if (!validation.success || !validation.data) {
+      console.error(
+        "[Generate from template] Validazione fallita:",
+        JSON.stringify(validation.errorDetails, null, 2),
       );
+      return validation.error;
     }
 
-    if (!targetType) {
-      return NextResponse.json(
-        { error: "Target type è obbligatorio" },
-        { status: 400 },
-      );
-    }
+    console.log(
+      "[Generate from template] Validazione OK, dati:",
+      validation.data,
+    );
 
-    if (!startDate) {
-      return NextResponse.json(
-        { error: "Data di inizio è obbligatoria" },
-        { status: 400 },
-      );
-    }
+    const { templateId, targetType, targetId, startDate, recurrenceEndDate } =
+      validation.data;
 
     // Carica il template
     const template = await prisma.deadlineTemplate.findUnique({

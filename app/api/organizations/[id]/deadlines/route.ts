@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { createDeadlineSchema } from "@/lib/validation/deadline";
+import { validateRequest } from "@/lib/validation/validate";
 
 export async function POST(
   request: Request,
@@ -27,22 +29,15 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { title, dueDate, personId, structureId, notes, reminders } = body;
 
-    // Validazioni
-    if (!title?.trim()) {
-      return NextResponse.json(
-        { error: "Il titolo è obbligatorio" },
-        { status: 400 },
-      );
+    // Validazione con Zod
+    const validation = validateRequest(createDeadlineSchema, body);
+    if (!validation.success || !validation.data) {
+      return validation.error;
     }
 
-    if (!dueDate) {
-      return NextResponse.json(
-        { error: "La data di scadenza è obbligatoria" },
-        { status: 400 },
-      );
-    }
+    const { title, dueDate, personId, structureId, notes, reminders } =
+      validation.data;
 
     // Almeno uno tra personId e structureId deve essere specificato
     if (!personId && !structureId) {
@@ -175,6 +170,7 @@ export async function GET(
     const year = searchParams.get("year");
     const structureId = searchParams.get("structureId");
     const requiresDocument = searchParams.get("requiresDocument");
+    const nextOccurrenceOnly = searchParams.get("nextOccurrenceOnly");
 
     // Verifica che l'utente abbia accesso a questa organizzazione
     const orgUser = await prisma.organizationUser.findFirst({
@@ -246,6 +242,12 @@ export async function GET(
             id: true,
             title: true,
             complianceType: true,
+            requiredDocumentName: true,
+          },
+        },
+        _count: {
+          select: {
+            documents: true,
           },
         },
       },
@@ -254,16 +256,40 @@ export async function GET(
       },
     });
 
+    // Se richiesto, filtra per mostrare solo la prossima occorrenza di ogni gruppo ricorrente
+    let filteredDeadlines = deadlines;
+    if (nextOccurrenceOnly === "true") {
+      const now = new Date();
+      const seenGroups = new Set<string>();
+
+      filteredDeadlines = deadlines.filter((deadline) => {
+        // Se non è ricorrente o non ha un gruppo, la includiamo sempre
+        if (!deadline.isRecurring || !deadline.recurrenceGroupId) {
+          return true;
+        }
+
+        // Se abbiamo già visto questo gruppo, skippiamo
+        if (seenGroups.has(deadline.recurrenceGroupId)) {
+          return false;
+        }
+
+        // Questa è la prima occorrenza del gruppo (sono ordinate per dueDate asc)
+        // La includiamo solo se è futura o in corso
+        seenGroups.add(deadline.recurrenceGroupId);
+        return true;
+      });
+    }
+
     // Calcola statistiche
     const now = new Date();
     const stats = {
-      total: deadlines.length,
-      pending: deadlines.filter((d) => d.status === "PENDING").length,
-      overdue: deadlines.filter(
+      total: filteredDeadlines.length,
+      pending: filteredDeadlines.filter((d) => d.status === "PENDING").length,
+      overdue: filteredDeadlines.filter(
         (d) => d.status === "PENDING" && new Date(d.dueDate) < now,
       ).length,
-      completed: deadlines.filter((d) => d.status === "DONE").length,
-      upcoming: deadlines.filter(
+      completed: filteredDeadlines.filter((d) => d.status === "DONE").length,
+      upcoming: filteredDeadlines.filter(
         (d) =>
           d.status === "PENDING" &&
           new Date(d.dueDate) >= now &&
@@ -273,7 +299,7 @@ export async function GET(
     };
 
     return NextResponse.json({
-      deadlines,
+      deadlines: filteredDeadlines,
       stats,
     });
   } catch (error) {

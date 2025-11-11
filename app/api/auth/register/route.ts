@@ -9,18 +9,20 @@ import {
   getIdentifier,
   getRateLimitErrorMessage,
 } from "@/lib/rate-limit";
+import { registerSchema } from "@/lib/validation/auth";
+import { validateRequest } from "@/lib/validation/validate";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password, name } = body;
 
-    if (!email || !password || !name) {
-      return NextResponse.json(
-        { error: "Email, password e nome sono obbligatori" },
-        { status: 400 },
-      );
+    // Validazione con Zod
+    const validation = validateRequest(registerSchema, body);
+    if (!validation.success) {
+      return validation.error;
     }
+
+    const { email, password, name } = validation.data;
 
     // Applica rate limiting
     const identifier = getIdentifier(request, email);
@@ -44,15 +46,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (password.length < 8) {
-      return NextResponse.json(
-        { error: "La password deve essere di almeno 8 caratteri" },
-        { status: 400 },
-      );
-    }
-
+    // Email già normalizzata da Zod (toLowerCase)
     const existingUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email },
     });
 
     if (existingUser) {
@@ -69,7 +65,7 @@ export async function POST(request: Request) {
 
     const user = await prisma.user.create({
       data: {
-        email: email.toLowerCase(),
+        email, // già normalizzata da Zod
         password: hashedPassword,
         name,
         accountStatus: "PENDING_VERIFICATION",

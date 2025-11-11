@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { updateTemplateSchema } from "@/lib/validation/template";
+import { validateRequest } from "@/lib/validation/validate";
 
 export async function GET(
   request: Request,
@@ -120,40 +122,43 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const {
-      title,
-      complianceType,
-      description,
-      scope,
-      recurrenceUnit,
-      recurrenceEvery,
-      firstDueOffsetDays,
-      anchor,
-      requiredDocumentName,
-    } = body;
 
-    // Validazione campi obbligatori
-    if (!title || !complianceType || !scope || !recurrenceUnit || !anchor) {
-      return NextResponse.json(
-        { error: "Campi obbligatori mancanti" },
-        { status: 400 },
-      );
+    // Validazione con Zod
+    const validation = validateRequest(updateTemplateSchema, body);
+    if (!validation.success || !validation.data) {
+      return validation.error;
     }
+
+    const validatedData = validation.data;
+
+    // Prepara i dati per l'update (solo campi forniti)
+    const updateData: any = {};
+    if (validatedData.title !== undefined)
+      updateData.title = validatedData.title;
+    if (validatedData.complianceType !== undefined)
+      updateData.complianceType = validatedData.complianceType;
+    if (validatedData.description !== undefined)
+      updateData.description = validatedData.description || null;
+    if (validatedData.scope !== undefined)
+      updateData.scope = validatedData.scope;
+    if (validatedData.recurrenceUnit !== undefined)
+      updateData.recurrenceUnit = validatedData.recurrenceUnit;
+    if (validatedData.recurrenceEvery !== undefined)
+      updateData.recurrenceEvery = validatedData.recurrenceEvery;
+    if (validatedData.firstDueOffsetDays !== undefined)
+      updateData.firstDueOffsetDays = validatedData.firstDueOffsetDays;
+    if (validatedData.anchor !== undefined)
+      updateData.anchor = validatedData.anchor;
+    if (validatedData.requiredDocumentName !== undefined)
+      updateData.requiredDocumentName =
+        validatedData.requiredDocumentName || null;
+    if (validatedData.active !== undefined)
+      updateData.active = validatedData.active;
 
     // Aggiorna il template
     const updatedTemplate = await prisma.deadlineTemplate.update({
       where: { id: templateId },
-      data: {
-        title,
-        complianceType,
-        description: description || null,
-        scope,
-        recurrenceUnit,
-        recurrenceEvery: parseInt(recurrenceEvery) || 1,
-        firstDueOffsetDays: parseInt(firstDueOffsetDays) || 0,
-        anchor,
-        requiredDocumentName: requiredDocumentName || null,
-      },
+      data: updateData,
     });
 
     return NextResponse.json({ template: updatedTemplate });

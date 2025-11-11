@@ -29,6 +29,15 @@ interface DeadlineInstance {
   title: string;
   dueDate: string;
   status: string;
+  person?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
+  structure?: {
+    id: string;
+    name: string;
+  } | null;
   template?: {
     id: string;
     title: string;
@@ -106,9 +115,10 @@ export default function UploadDocumentModal({
 
   const loadDeadlines = async () => {
     try {
-      // Filtra solo le scadenze che richiedono documenti
+      // Carica TUTTE le scadenze dell'organizzazione che richiedono documenti
+      // Non filtrare per structureId perché vogliamo mostrare sia scadenze di persone che di strutture
       const response = await fetch(
-        `/api/organizations/${organizationId}/deadlines?structureId=${structureId}&requiresDocument=true`,
+        `/api/organizations/${organizationId}/deadlines?requiresDocument=true`,
       );
       if (!response.ok) throw new Error("Errore caricamento scadenze");
       const data = await response.json();
@@ -397,21 +407,28 @@ export default function UploadDocumentModal({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
                 <option value="">Seleziona un adempimento...</option>
-                {deadlines.map((deadline) => (
-                  <option key={deadline.id} value={deadline.id}>
-                    {deadline.title}
-                    {deadline.template?.requiredDocumentName &&
-                      ` - Richiede: ${deadline.template.requiredDocumentName}`}
-                    {" - Scadenza: "}
-                    {new Date(deadline.dueDate).toLocaleDateString("it-IT")}
-                  </option>
-                ))}
+                {deadlines.map((deadline) => {
+                  const assignedTo = deadline.person
+                    ? `${deadline.person.firstName} ${deadline.person.lastName}`
+                    : deadline.structure?.name || "Non assegnato";
+                  return (
+                    <option key={deadline.id} value={deadline.id}>
+                      {deadline.title}
+                      {deadline.template?.requiredDocumentName &&
+                        ` - Richiede: ${deadline.template.requiredDocumentName}`}
+                      {` - Assegnato a: ${assignedTo}`}
+                      {" - Scadenza: "}
+                      {new Date(deadline.dueDate).toLocaleDateString("it-IT")}
+                      {` (${deadline.status})`}
+                    </option>
+                  );
+                })}
               </select>
               {deadlines.length === 0 && (
                 <p className="text-xs text-amber-600 mt-2">
-                  ⚠️ Nessun adempimento che richiede documenti trovato per
-                  questa struttura. Gli adempimenti devono essere configurati
-                  con un documento obbligatorio richiesto.
+                  ⚠️ Nessun adempimento che richiede documenti trovato. Crea
+                  scadenze da template che richiedono documenti (es: RC
+                  Professionale, Estintori, ecc.)
                 </p>
               )}
             </div>

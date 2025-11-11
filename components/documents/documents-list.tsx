@@ -57,7 +57,7 @@ export default function DocumentsList({
   const loadDocuments = async () => {
     setLoading(true);
     try {
-      // Carica tutti i documenti della struttura (inclusi quelli delle persone)
+      // Carica documenti della struttura E delle deadline (sia della struttura che delle persone)
       const endpoint = `/api/organizations/${organizationId}/structures/${structureId}/documents`;
 
       const response = await fetch(endpoint);
@@ -66,6 +66,7 @@ export default function DocumentsList({
         throw new Error(errorData.error || "Errore caricamento documenti");
       }
       const data = await response.json();
+      console.log("Documenti caricati:", data.documents);
       setDocuments(data.documents || []);
     } catch (error) {
       console.error("Errore caricamento documenti:", error);

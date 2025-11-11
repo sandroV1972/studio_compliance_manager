@@ -8,6 +8,8 @@ import {
   getIdentifier,
   getRateLimitErrorMessage,
 } from "@/lib/rate-limit";
+import { resetPasswordSchema } from "@/lib/validation/auth";
+import { validateRequest } from "@/lib/validation/validate";
 
 // GET - Verifica la validità del token
 export async function GET(request: Request) {
@@ -69,14 +71,14 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { token, password } = body;
 
-    if (!token || !password) {
-      return NextResponse.json(
-        { error: "Token e password richiesti" },
-        { status: 400 },
-      );
+    // Validazione con Zod
+    const validation = validateRequest(resetPasswordSchema, body);
+    if (!validation.success) {
+      return validation.error;
     }
+
+    const { token, password } = validation.data;
 
     // Applica rate limiting basato sul token
     const identifier = getIdentifier(request, token);
@@ -100,14 +102,6 @@ export async function POST(request: Request) {
             "Retry-After": rateLimit.retryAfter!.toString(),
           },
         },
-      );
-    }
-
-    // Validazione password
-    if (password.length < 8) {
-      return NextResponse.json(
-        { error: "La password deve contenere almeno 8 caratteri" },
-        { status: 400 },
       );
     }
 

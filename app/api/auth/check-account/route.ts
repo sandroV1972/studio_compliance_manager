@@ -6,14 +6,20 @@ import {
   getIdentifier,
   getRateLimitErrorMessage,
 } from "@/lib/rate-limit";
+import { loginSchema } from "@/lib/validation/auth";
+import { validateRequest } from "@/lib/validation/validate";
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json();
+    const body = await request.json();
 
-    if (!email) {
-      return NextResponse.json({ error: "Email richiesta" }, { status: 400 });
+    // Validazione con Zod
+    const validation = validateRequest(loginSchema, body);
+    if (!validation.success) {
+      return validation.error;
     }
+
+    const { email } = validation.data;
 
     // Applica rate limiting
     const identifier = getIdentifier(request, email);
