@@ -1,170 +1,176 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createDeadlineSchema } from "@/lib/validation/deadline";
-import { validateRequest } from "@/lib/validation/validate";
+import {
+  getPaginationParams,
+  getPrismaSkipTake,
+  getPrismaOrderBy,
+  createPaginatedResponse,
+} from "@/lib/pagination";
+import { getCurrentUserWithRole } from "@/lib/auth-utils";
+import {
+  canCreateDeadlines,
+  hasAccessToOrganization,
+  hasAccessToStructure,
+  isStructureManager,
+  isOperator,
+} from "@/lib/permissions";
+import { deadlineService } from "@/lib/services/deadline-service";
+import { handleServiceError } from "@/lib/api/handle-service-error";
+import { createApiLogger } from "@/lib/logger";
 
+/**
+ * POST /api/organizations/[id]/deadlines
+ * Crea una nuova deadline
+ */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id: organizationId } = await params;
+  const logger = createApiLogger(
+    "POST",
+    `/api/organizations/${organizationId}/deadlines`,
+  );
+
   try {
+    // ========== AUTENTICAZIONE ==========
     const session = await auth();
     if (!session?.user?.id) {
+      logger.warn({ msg: "Unauthorized create deadline attempt" });
       return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
     }
 
-    const { id: organizationId } = await params;
-
-    // Verifica che l'utente abbia accesso a questa organizzazione
-    const orgUser = await prisma.organizationUser.findFirst({
-      where: {
-        organizationId: organizationId,
-        userId: session.user.id,
-      },
+    logger.info({
+      msg: "Creating deadline",
+      userId: session.user.id,
+      organizationId,
     });
 
-    if (!orgUser && !session.user.isSuperAdmin) {
+    // ========== AUTORIZZAZIONE ==========
+    const user = await getCurrentUserWithRole();
+    if (!user) {
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+    }
+
+    // Verifica accesso all'organizzazione
+    if (!hasAccessToOrganization(user, organizationId)) {
+      logger.warn({
+        msg: "Access denied to organization",
+        userId: session.user.id,
+        organizationId,
+      });
       return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
     }
 
-    const body = await request.json();
-
-    // Validazione con Zod
-    const validation = validateRequest(createDeadlineSchema, body);
-    if (!validation.success || !validation.data) {
-      return validation.error;
-    }
-
-    const { title, dueDate, personId, structureId, notes, reminders } =
-      validation.data;
-
-    // Almeno uno tra personId e structureId deve essere specificato
-    if (!personId && !structureId) {
+    // Verifica permesso di creazione scadenze
+    if (!canCreateDeadlines(user)) {
+      logger.warn({
+        msg: "Permission denied to create deadlines",
+        userId: session.user.id,
+      });
       return NextResponse.json(
-        { error: "Specifica almeno una persona o una struttura" },
-        { status: 400 },
+        {
+          error:
+            "Non hai i permessi per creare scadenze. Solo amministratori e responsabili possono creare scadenze.",
+        },
+        { status: 403 },
       );
     }
 
-    // Se personId è specificato, verifica che appartenga all'organizzazione
-    if (personId) {
-      const person = await prisma.person.findFirst({
-        where: {
-          id: personId,
-          organizationId: organizationId,
-        },
-      });
+    // ========== PARSING INPUT ==========
+    const body = await request.json();
 
-      if (!person) {
+    // ========== AUTHORIZATION: MANAGER/OPERATOR structure check ==========
+    // Questo è un controllo di autorizzazione, non business logic, quindi resta nella route
+    if (body.structureId && (isStructureManager(user) || isOperator(user))) {
+      if (!hasAccessToStructure(user, body.structureId)) {
+        logger.warn({
+          msg: "Structure access denied for MANAGER/OPERATOR",
+          userId: session.user.id,
+          structureId: body.structureId,
+        });
         return NextResponse.json(
           {
             error:
-              "Persona non trovata o non appartiene a questa organizzazione",
+              "Non hai i permessi per creare scadenze in questa struttura. Puoi creare scadenze solo per la tua struttura assegnata.",
           },
-          { status: 404 },
+          { status: 403 },
         );
       }
     }
 
-    // Se structureId è specificato, verifica che appartenga all'organizzazione
-    if (structureId) {
-      const structure = await prisma.structure.findFirst({
-        where: {
-          id: structureId,
-          organizationId: organizationId,
-        },
-      });
-
-      if (!structure) {
-        return NextResponse.json(
-          {
-            error:
-              "Struttura non trovata o non appartiene a questa organizzazione",
-          },
-          { status: 404 },
-        );
-      }
-    }
-
-    // Crea la deadline instance con i reminders
-    const deadline = await prisma.deadlineInstance.create({
-      data: {
-        organizationId: organizationId,
-        title: title.trim(),
-        dueDate: new Date(dueDate),
-        status: "PENDING",
-        personId: personId || null,
-        structureId: structureId || null,
-        notes: notes?.trim() || null,
-        // templateId è null per scadenze manuali
-        // Crea i reminders se presenti
-        reminders: {
-          create:
-            reminders?.map(
-              (reminder: { daysBefore: number; message?: string }) => ({
-                daysBefore: reminder.daysBefore,
-                message: reminder.message?.trim() || null,
-              }),
-            ) || [],
-        },
-      },
-      include: {
-        person: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-        structure: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        reminders: true,
-      },
+    // ========== BUSINESS LOGIC (delegata al service) ==========
+    const deadline = await deadlineService.createDeadline({
+      organizationId,
+      userId: session.user.id,
+      data: body,
     });
 
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        organizationId: organizationId,
-        userId: session.user.id,
-        action: "CREATE_DEADLINE",
-        entity: "DeadlineInstance",
-        entityId: deadline.id,
-        metadata: {
-          title: deadline.title,
-          dueDate: deadline.dueDate,
-          personId: deadline.personId,
-          structureId: deadline.structureId,
-        },
-      },
+    // ========== RESPONSE ==========
+    logger.info({
+      msg: "Deadline created successfully",
+      deadlineId: deadline.id,
     });
 
     return NextResponse.json({ deadline }, { status: 201 });
   } catch (error) {
-    console.error("Errore creazione scadenza:", error);
-    return NextResponse.json(
-      { error: "Errore nella creazione della scadenza" },
-      { status: 500 },
-    );
+    // ========== ERROR HANDLING ==========
+    return handleServiceError(error, logger);
   }
 }
 
+/**
+ * GET /api/organizations/[id]/deadlines
+ * Ottiene lista di deadlines con filtri avanzati
+ *
+ * NOTA: Questo endpoint ha logica complessa per filtri speciali (calendario, documenti, ricorrenze)
+ * che al momento non è nel service. Per ora mantiene la logica inline.
+ * TODO: Espandere deadlineService.getDeadlines() per supportare questi filtri
+ */
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id: organizationId } = await params;
+  const session = await auth();
+
+  const logger = createApiLogger(
+    "GET",
+    `/api/organizations/${organizationId}/deadlines`,
+    session?.user?.id,
+    organizationId,
+  );
+
   try {
-    const session = await auth();
+    // ========== AUTENTICAZIONE ==========
     if (!session?.user?.id) {
+      logger.warn({ msg: "Unauthorized list deadlines attempt" });
       return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
     }
 
-    const { id } = await params;
+    logger.info({
+      msg: "Fetching deadlines list",
+      userId: session.user.id,
+      organizationId,
+    });
+
+    // ========== AUTORIZZAZIONE ==========
+    const user = await getCurrentUserWithRole();
+    if (!user) {
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+    }
+
+    if (!hasAccessToOrganization(user, organizationId)) {
+      logger.warn({
+        msg: "Access denied to organization",
+        userId: session.user.id,
+        organizationId,
+      });
+      return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
+    }
+
+    // ========== PARSING QUERY PARAMS ==========
     const { searchParams } = new URL(request.url);
     const month = searchParams.get("month");
     const year = searchParams.get("year");
@@ -172,17 +178,10 @@ export async function GET(
     const requiresDocument = searchParams.get("requiresDocument");
     const nextOccurrenceOnly = searchParams.get("nextOccurrenceOnly");
 
-    // Verifica che l'utente abbia accesso a questa organizzazione
-    const orgUser = await prisma.organizationUser.findFirst({
-      where: {
-        organizationId: id,
-        userId: session.user.id,
-      },
-    });
+    const paginationParams = getPaginationParams(searchParams);
+    const { skip, take } = getPrismaSkipTake(paginationParams);
 
-    if (!orgUser && !session.user.isSuperAdmin) {
-      return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
-    }
+    // ========== BUSINESS LOGIC (parzialmente custom per filtri avanzati) ==========
 
     // Costruisci i filtri per data se specificati
     let dateFilter = {};
@@ -197,10 +196,15 @@ export async function GET(
       };
     }
 
-    // Filtro per struttura
+    // Filtro per struttura + MANAGER/OPERATOR access control
     let structureFilter = {};
     if (structureId) {
       structureFilter = { structureId };
+    } else if (isStructureManager(user) || isOperator(user)) {
+      // MANAGER/OPERATOR vedono solo scadenze della propria struttura
+      if (user.organizationUser?.structureId) {
+        structureFilter = { structureId: user.organizationUser.structureId };
+      }
     }
 
     // Filtro per scadenze che richiedono documenti
@@ -215,14 +219,27 @@ export async function GET(
       };
     }
 
-    // Recupera le scadenze dell'organizzazione
+    // Build the where clause
+    const whereClause = {
+      organizationId,
+      ...dateFilter,
+      ...structureFilter,
+      ...documentFilter,
+    };
+
+    // Get total count for pagination
+    const totalCount = await prisma.deadlineInstance.count({
+      where: whereClause,
+    });
+
+    // Get orderBy object (default to dueDate ascending)
+    const orderBy = paginationParams.sort
+      ? getPrismaOrderBy(paginationParams, "dueDate")
+      : { dueDate: "asc" as const };
+
+    // Recupera le scadenze dell'organizzazione with pagination
     const deadlines = await prisma.deadlineInstance.findMany({
-      where: {
-        organizationId: id,
-        ...dateFilter,
-        ...structureFilter,
-        ...documentFilter,
-      },
+      where: whereClause,
       include: {
         person: {
           select: {
@@ -251,15 +268,14 @@ export async function GET(
           },
         },
       },
-      orderBy: {
-        dueDate: "asc",
-      },
+      orderBy,
+      skip,
+      take,
     });
 
     // Se richiesto, filtra per mostrare solo la prossima occorrenza di ogni gruppo ricorrente
     let filteredDeadlines = deadlines;
     if (nextOccurrenceOnly === "true") {
-      const now = new Date();
       const seenGroups = new Set<string>();
 
       filteredDeadlines = deadlines.filter((deadline) => {
@@ -274,13 +290,12 @@ export async function GET(
         }
 
         // Questa è la prima occorrenza del gruppo (sono ordinate per dueDate asc)
-        // La includiamo solo se è futura o in corso
         seenGroups.add(deadline.recurrenceGroupId);
         return true;
       });
     }
 
-    // Calcola statistiche
+    // Calcola statistiche (on filtered deadlines, not paginated)
     const now = new Date();
     const stats = {
       total: filteredDeadlines.length,
@@ -298,15 +313,25 @@ export async function GET(
       ).length,
     };
 
+    // Create paginated response
+    const paginatedResponse = createPaginatedResponse(
+      filteredDeadlines,
+      totalCount,
+      paginationParams,
+    );
+
+    // ========== RESPONSE ==========
+    logger.info({
+      msg: "Deadlines list retrieved successfully",
+      count: filteredDeadlines.length,
+      total: totalCount,
+    });
+
     return NextResponse.json({
-      deadlines: filteredDeadlines,
+      ...paginatedResponse,
       stats,
     });
   } catch (error) {
-    console.error("Errore recupero scadenze:", error);
-    return NextResponse.json(
-      { error: "Errore nel recupero delle scadenze" },
-      { status: 500 },
-    );
+    return handleServiceError(error, logger);
   }
 }

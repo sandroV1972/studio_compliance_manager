@@ -7,9 +7,9 @@ import {
   Users,
   Building2,
   FileCheck2,
-  ClipboardCheck,
   LogOut,
 } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 import { AdminSettingsMenu } from "@/components/admin/admin-settings-menu";
 
 export default async function AdminLayout({
@@ -32,9 +32,7 @@ export default async function AdminLayout({
               href="/admin"
               className="flex items-center gap-3 text-xl font-bold text-white hover:text-indigo-100 transition-colors group"
             >
-              <div className="p-2 bg-white/20 rounded-lg group-hover:bg-white/30 transition-colors">
-                <ClipboardCheck className="h-6 w-6" />
-              </div>
+              <Logo className="h-16 w-16" />
               <span>Admin Panel</span>
             </Link>
             <nav className="flex items-center gap-2">

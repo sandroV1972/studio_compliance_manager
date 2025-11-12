@@ -1,48 +1,63 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { createApiLogger } from "@/lib/logger";
+import { userService } from "@/lib/services/user-service";
+import { handleServiceError } from "@/lib/api/handle-service-error";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+  ErrorCodes,
+} from "@/lib/api/response-envelope";
 
+/**
+ * GET /api/user/organization
+ * Recupera organizzazione dell'utente
+ */
 export async function GET() {
+  const session = await auth();
+
+  const logger = createApiLogger(
+    "GET",
+    "/api/user/organization",
+    session?.user?.id,
+  );
+
   try {
-    const session = await auth();
+    // ========== AUTENTICAZIONE ==========
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+      logger.warn({ msg: "Unauthorized access attempt" });
+      return createErrorResponse(
+        ErrorCodes.UNAUTHORIZED,
+        "Non autorizzato",
+        401,
+      );
     }
 
-    // Trova l'organizzazione dell'utente (1 user = 1 org)
-    const orgUser = await prisma.organizationUser.findUnique({
-      where: {
-        userId: session.user.id,
-      },
-      include: {
-        organization: {
-          include: {
-            structures: {
-              where: {
-                active: true,
-              },
-              include: {
-                _count: {
-                  select: {
-                    personStructures: true,
-                    deadlineInstances: true,
-                  },
-                },
-              },
-              orderBy: {
-                name: "asc",
-              },
-            },
-          },
-        },
-      },
+    logger.info({
+      msg: "Fetching user organization",
+      userId: session.user.id,
+    });
+
+    // ========== BUSINESS LOGIC (delegata al service) ==========
+    const orgUser = await userService.getUserOrganization({
+      userId: session.user.id,
     });
 
     if (!orgUser) {
-      return NextResponse.json(null);
+      logger.info({
+        msg: "User has no organization",
+        userId: session.user.id,
+      });
+      return createSuccessResponse(null);
     }
 
-    return NextResponse.json({
+    // ========== RESPONSE ==========
+    logger.info({
+      msg: "User organization retrieved successfully",
+      organizationId: orgUser.organization.id,
+      structureCount: orgUser.organization.structures.length,
+    });
+
+    return createSuccessResponse({
       id: orgUser.organization.id,
       name: orgUser.organization.name,
       type: orgUser.organization.type,
@@ -60,10 +75,6 @@ export async function GET() {
       structures: orgUser.organization.structures,
     });
   } catch (error) {
-    console.error("Errore recupero organizzazione:", error);
-    return NextResponse.json(
-      { error: "Errore nel recupero dell'organizzazione" },
-      { status: 500 },
-    );
+    return handleServiceError(error, logger);
   }
 }

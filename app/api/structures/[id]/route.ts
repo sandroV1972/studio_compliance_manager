@@ -1,64 +1,125 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUserWithRole } from "@/lib/auth-utils";
+import { hasAccessToOrganization } from "@/lib/permissions";
+import { createApiLogger } from "@/lib/logger";
+import { structureService } from "@/lib/services/structure-service";
+import { handleServiceError } from "@/lib/api/handle-service-error";
 
+/**
+ * GET /api/structures/[id]
+ * Recupera una singola struttura
+ */
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id: structureId } = await params;
+  const session = await auth();
+
+  const logger = createApiLogger(
+    "GET",
+    `/api/structures/${structureId}`,
+    session?.user?.id,
+  );
+
   try {
-    const session = await auth();
+    // ========== AUTENTICAZIONE ==========
     if (!session?.user?.id) {
+      logger.warn({ msg: "Unauthorized access attempt" });
       return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
     }
 
-    const { id } = await params;
-
-    const structure = await prisma.structure.findUnique({
-      where: {
-        id,
-      },
-      include: {
-        _count: {
-          select: {
-            personStructures: true,
-            deadlineInstances: true,
-          },
-        },
-      },
+    logger.info({
+      msg: "Fetching structure",
+      userId: session.user.id,
+      structureId,
     });
 
-    if (!structure) {
+    // ========== AUTORIZZAZIONE ==========
+    // Prima recuperiamo la struttura per verificare l'organizzazione
+    const tempStructure = await prisma.structure.findUnique({
+      where: { id: structureId },
+      select: { organizationId: true },
+    });
+
+    if (!tempStructure) {
+      logger.warn({
+        msg: "Structure not found",
+        structureId,
+      });
       return NextResponse.json(
         { error: "Struttura non trovata" },
         { status: 404 },
       );
     }
 
+    const user = await getCurrentUserWithRole();
+    if (!user) {
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+    }
+
+    if (!hasAccessToOrganization(user, tempStructure.organizationId)) {
+      logger.warn({
+        msg: "Access denied to organization",
+        userId: session.user.id,
+        organizationId: tempStructure.organizationId,
+      });
+      return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
+    }
+
+    // ========== BUSINESS LOGIC (delegata al service) ==========
+    const structure = await structureService.getStructure({
+      structureId,
+      organizationId: tempStructure.organizationId,
+      userId: session.user.id,
+      includeCount: true,
+    });
+
+    // ========== RESPONSE ==========
+    logger.info({
+      msg: "Structure retrieved successfully",
+      structureId: structure.id,
+    });
     return NextResponse.json(structure);
   } catch (error) {
-    console.error("Errore recupero struttura:", error);
-    return NextResponse.json(
-      { error: "Errore nel recupero della struttura" },
-      { status: 500 },
-    );
+    return handleServiceError(error, logger);
   }
 }
 
+/**
+ * PATCH /api/structures/[id]
+ * Aggiorna una struttura
+ */
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id: structureId } = await params;
+  const session = await auth();
+
+  const logger = createApiLogger(
+    "PATCH",
+    `/api/structures/${structureId}`,
+    session?.user?.id,
+  );
+
   try {
-    const session = await auth();
+    // ========== AUTENTICAZIONE ==========
     if (!session?.user?.id) {
+      logger.warn({ msg: "Unauthorized update attempt" });
       return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
     }
 
-    const { id } = await params;
-    const data = await request.json();
+    logger.info({
+      msg: "Updating structure",
+      userId: session.user.id,
+      structureId,
+    });
 
-    // Verifica che la struttura appartenga all'organizzazione dell'utente
+    // ========== AUTORIZZAZIONE ==========
+    // Trova l'organizzazione dell'utente
     const orgUser = await prisma.organizationUser.findUnique({
       where: {
         userId: session.user.id,
@@ -66,17 +127,27 @@ export async function PATCH(
     });
 
     if (!orgUser) {
+      logger.warn({
+        msg: "User not associated with any organization",
+        userId: session.user.id,
+      });
       return NextResponse.json(
         { error: "Utente non associato a nessuna organizzazione" },
         { status: 403 },
       );
     }
 
+    // Verifica che la struttura appartenga all'organizzazione dell'utente
     const existingStructure = await prisma.structure.findUnique({
-      where: { id },
+      where: { id: structureId },
+      select: { organizationId: true },
     });
 
     if (!existingStructure) {
+      logger.warn({
+        msg: "Structure not found",
+        structureId,
+      });
       return NextResponse.json(
         { error: "Struttura non trovata" },
         { status: 404 },
@@ -84,59 +155,37 @@ export async function PATCH(
     }
 
     if (existingStructure.organizationId !== orgUser.organizationId) {
+      logger.warn({
+        msg: "Permission denied to update structure",
+        userId: session.user.id,
+        structureId,
+        userOrg: orgUser.organizationId,
+        structureOrg: existingStructure.organizationId,
+      });
       return NextResponse.json(
         { error: "Non hai il permesso di modificare questa struttura" },
         { status: 403 },
       );
     }
 
-    // Convert date strings from Italian format (dd/mm/yyyy) to ISO format
-    const convertDateToISO = (dateStr: string): Date | null => {
-      if (!dateStr) return null;
-      const parts = dateStr.split("/");
-      if (parts.length !== 3) return null;
-      const [day, month, year] = parts;
-      if (!day || !month || !year) return null;
-      return new Date(
-        `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`,
-      );
-    };
+    // ========== PARSING INPUT ==========
+    const body = await request.json();
 
-    const structure = await prisma.structure.update({
-      where: { id },
-      data: {
-        name: data.name,
-        code: data.code || null,
-        address: data.address || null,
-        city: data.city || null,
-        province: data.province || null,
-        postalCode: data.postalCode || null,
-        phone: data.phone || null,
-        email: data.email || null,
-        pec: data.pec || null,
-        website: data.website || null,
-        vatNumber: data.vatNumber || null,
-        fiscalCode: data.fiscalCode || null,
-        responsiblePersonId: data.responsiblePersonId || null,
-        legalRepName: data.legalRepName || null,
-        licenseNumber: data.licenseNumber || null,
-        licenseExpiry: data.licenseExpiry
-          ? convertDateToISO(data.licenseExpiry)
-          : null,
-        insurancePolicy: data.insurancePolicy || null,
-        insuranceExpiry: data.insuranceExpiry
-          ? convertDateToISO(data.insuranceExpiry)
-          : null,
-        notes: data.notes || null,
-      },
+    // ========== BUSINESS LOGIC (delegata al service) ==========
+    const structure = await structureService.updateStructure({
+      structureId,
+      organizationId: orgUser.organizationId,
+      userId: session.user.id,
+      data: body,
     });
 
+    // ========== RESPONSE ==========
+    logger.info({
+      msg: "Structure updated successfully",
+      structureId: structure.id,
+    });
     return NextResponse.json(structure);
   } catch (error) {
-    console.error("Errore aggiornamento struttura:", error);
-    return NextResponse.json(
-      { error: "Errore nell'aggiornamento della struttura" },
-      { status: 500 },
-    );
+    return handleServiceError(error, logger);
   }
 }

@@ -54,9 +54,11 @@ export default function DeadlineTemplatesPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [canManageTemplates, setCanManageTemplates] = useState(false);
 
   useEffect(() => {
     loadOrganization();
+    loadPermissions();
   }, []);
 
   useEffect(() => {
@@ -73,6 +75,17 @@ export default function DeadlineTemplatesPage() {
       setOrganizationId(data.id);
     } catch (error) {
       console.error("Errore:", error);
+    }
+  };
+
+  const loadPermissions = async () => {
+    try {
+      const response = await fetch("/api/user/permissions");
+      if (!response.ok) return;
+      const data = await response.json();
+      setCanManageTemplates(data.canManageOrgTemplates);
+    } catch (error) {
+      console.error("Errore caricamento permessi:", error);
     }
   };
 
@@ -212,10 +225,12 @@ export default function DeadlineTemplatesPage() {
             </p>
           </div>
         </div>
-        <Button onClick={() => setIsNewModalOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuovo Adempimento
-        </Button>
+        {canManageTemplates && (
+          <Button onClick={() => setIsNewModalOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuovo Adempimento
+          </Button>
+        )}
       </div>
 
       <Card>

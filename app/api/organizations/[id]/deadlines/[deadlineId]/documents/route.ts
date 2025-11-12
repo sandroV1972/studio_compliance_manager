@@ -1,254 +1,219 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
-import { existsSync } from "fs";
+import { getCurrentUserWithRole } from "@/lib/auth-utils";
+import {
+  canViewDocuments,
+  canUploadDocuments,
+  hasAccessToOrganization,
+} from "@/lib/permissions";
+import { withCSRFProtection } from "@/lib/csrf";
+import { createApiLogger } from "@/lib/logger";
+import { documentService } from "@/lib/services/document-service";
+import { deadlineService } from "@/lib/services/deadline-service";
+import { handleServiceError } from "@/lib/api/handle-service-error";
 
+/**
+ * GET /api/organizations/[id]/deadlines/[deadlineId]/documents
+ * Recupera i documenti di una deadline
+ */
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string; deadlineId: string }> },
 ) {
+  const { id: organizationId, deadlineId } = await params;
+  const session = await auth();
+
+  const logger = createApiLogger(
+    "GET",
+    `/api/organizations/${organizationId}/deadlines/${deadlineId}/documents`,
+    session?.user?.id,
+    organizationId,
+  );
+
   try {
-    const session = await auth();
+    // ========== AUTENTICAZIONE ==========
     if (!session?.user?.id) {
+      logger.warn({ msg: "Unauthorized access attempt" });
       return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
     }
 
-    const { id: organizationId, deadlineId } = await params;
-
-    // Verifica che l'utente abbia accesso a questa organizzazione
-    const orgUser = await prisma.organizationUser.findFirst({
-      where: {
-        organizationId: organizationId,
-        userId: session.user.id,
-      },
+    logger.info({
+      msg: "Fetching deadline documents",
+      userId: session.user.id,
+      deadlineId,
     });
 
-    if (!orgUser && !session.user.isSuperAdmin) {
+    // ========== AUTORIZZAZIONE ==========
+    const user = await getCurrentUserWithRole();
+    if (!user) {
+      logger.warn({ msg: "User not found", userId: session.user.id });
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+    }
+
+    if (!hasAccessToOrganization(user, organizationId)) {
+      logger.warn({
+        msg: "Access denied to organization",
+        userId: session.user.id,
+        organizationId,
+      });
       return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
     }
 
-    // Verifica che la scadenza appartenga all'organizzazione
-    const deadline = await prisma.deadlineInstance.findFirst({
-      where: {
-        id: deadlineId,
-        organizationId: organizationId,
-      },
-    });
+    // Verifica che la scadenza appartenga all'organizzazione e permission check
+    const deadline = await deadlineService.getDeadline(
+      deadlineId,
+      organizationId,
+    );
 
-    if (!deadline) {
+    if (!canViewDocuments(user, deadline.structureId)) {
+      logger.warn({
+        msg: "Permission denied to view documents",
+        userId: session.user.id,
+        structureId: deadline.structureId,
+      });
       return NextResponse.json(
-        { error: "Scadenza non trovata" },
-        { status: 404 },
+        {
+          error:
+            "Non hai i permessi per visualizzare i documenti di questa scadenza.",
+        },
+        { status: 403 },
       );
     }
 
-    // Recupera i documenti
-    const documents = await prisma.document.findMany({
-      where: {
-        organizationId: organizationId,
-        ownerType: "DEADLINE",
-        ownerId: deadlineId,
-      },
-      include: {
-        documentTemplate: true,
-        uploadedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
+    // ========== BUSINESS LOGIC (delegata al service) ==========
+    const documents = await documentService.getDocuments({
+      organizationId,
+      ownerType: "DEADLINE",
+      ownerId: deadlineId,
     });
 
+    // ========== RESPONSE ==========
+    logger.info({
+      msg: "Documents retrieved successfully",
+      count: documents.length,
+    });
     return NextResponse.json({ documents });
   } catch (error) {
-    console.error("Errore recupero documenti scadenza:", error);
-    return NextResponse.json(
-      { error: "Errore nel recupero dei documenti" },
-      { status: 500 },
-    );
+    return handleServiceError(error, logger);
   }
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string; deadlineId: string }> },
-) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
-    }
-
+/**
+ * POST /api/organizations/[id]/deadlines/[deadlineId]/documents
+ * Upload di un documento per una deadline
+ */
+export const POST = withCSRFProtection(
+  async (
+    request: Request,
+    { params }: { params: Promise<{ id: string; deadlineId: string }> },
+  ) => {
     const { id: organizationId, deadlineId } = await params;
+    const session = await auth();
 
-    // Verifica che l'utente abbia accesso a questa organizzazione
-    const orgUser = await prisma.organizationUser.findFirst({
-      where: {
-        organizationId: organizationId,
+    const logger = createApiLogger(
+      "POST",
+      `/api/organizations/${organizationId}/deadlines/${deadlineId}/documents`,
+      session?.user?.id,
+      organizationId,
+    );
+
+    try {
+      // ========== AUTENTICAZIONE ==========
+      if (!session?.user?.id) {
+        logger.warn({ msg: "Unauthorized upload attempt" });
+        return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+      }
+
+      logger.info({
+        msg: "Uploading document to deadline",
         userId: session.user.id,
-      },
-    });
-
-    if (!orgUser && !session.user.isSuperAdmin) {
-      return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
-    }
-
-    // Verifica che la scadenza appartenga all'organizzazione
-    const deadline = await prisma.deadlineInstance.findFirst({
-      where: {
-        id: deadlineId,
-        organizationId: organizationId,
-      },
-    });
-
-    if (!deadline) {
-      return NextResponse.json(
-        { error: "Scadenza non trovata" },
-        { status: 404 },
-      );
-    }
-
-    const formData = await request.formData();
-    const file = formData.get("file") as File;
-    const templateId = formData.get("templateId") as string | null;
-    const expiryDate = formData.get("expiryDate") as string | null;
-    const notes = formData.get("notes") as string | null;
-
-    if (!file) {
-      return NextResponse.json(
-        { error: "File è obbligatorio" },
-        { status: 400 },
-      );
-    }
-
-    // Verifica il template se fornito
-    if (templateId) {
-      const template = await prisma.documentTemplate.findUnique({
-        where: { id: templateId },
+        deadlineId,
       });
 
-      if (!template) {
-        return NextResponse.json(
-          { error: "Template non trovato" },
-          { status: 400 },
-        );
+      // ========== AUTORIZZAZIONE ==========
+      const user = await getCurrentUserWithRole();
+      if (!user) {
+        return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
       }
 
-      // Verifica formato file se specificato nel template
-      if (template.fileFormats) {
-        const allowedFormats = template.fileFormats
-          .split(",")
-          .map((f) => f.trim().toLowerCase());
-        const fileExtension = file.name.split(".").pop()?.toLowerCase();
-        if (fileExtension && !allowedFormats.includes(fileExtension)) {
-          return NextResponse.json(
-            {
-              error: `Formato file non valido. Formati accettati: ${template.fileFormats}`,
-            },
-            { status: 400 },
-          );
-        }
+      if (!hasAccessToOrganization(user, organizationId)) {
+        logger.warn({
+          msg: "Access denied to organization",
+          userId: session.user.id,
+          organizationId,
+        });
+        return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
       }
 
-      // Verifica dimensione file se specificato nel template
-      if (template.maxSizeKB && file.size > template.maxSizeKB * 1024) {
+      // Verifica che la scadenza appartenga all'organizzazione
+      const deadline = await deadlineService.getDeadline(
+        deadlineId,
+        organizationId,
+      );
+
+      // Verifica permesso di caricamento documenti
+      if (!canUploadDocuments(user, deadline.structureId)) {
+        logger.warn({
+          msg: "Permission denied to upload documents",
+          userId: session.user.id,
+          structureId: deadline.structureId,
+        });
         return NextResponse.json(
           {
-            error: `File troppo grande. Dimensione massima: ${template.maxSizeKB}KB`,
+            error:
+              "Non hai i permessi per caricare documenti in questa scadenza. Puoi caricare documenti solo nella tua struttura assegnata.",
           },
+          { status: 403 },
+        );
+      }
+
+      // ========== PARSING INPUT ==========
+      const formData = await request.formData();
+      const file = formData.get("file") as File;
+      const templateId = (formData.get("templateId") as string | null) || null;
+      const expiryDate = (formData.get("expiryDate") as string | null) || null;
+      const notes = (formData.get("notes") as string | null) || null;
+
+      if (!file) {
+        return NextResponse.json(
+          { error: "File è obbligatorio" },
           { status: 400 },
         );
       }
-    }
 
-    // Crea directory se non esiste
-    const uploadDir = join(
-      process.cwd(),
-      "uploads",
-      organizationId,
-      "deadlines",
-      deadlineId,
-    );
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
+      // Converti File in Buffer
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
 
-    // Genera nome file univoco
-    const timestamp = Date.now();
-    const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const fileName = `${timestamp}_${sanitizedFileName}`;
-    const filePath = join(uploadDir, fileName);
-
-    // Salva il file
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
-
-    // Calcola se il documento è scaduto
-    const isExpired = expiryDate ? new Date(expiryDate) < new Date() : false;
-
-    // Salva nel database
-    const document = await prisma.document.create({
-      data: {
-        organizationId: organizationId,
-        templateId: templateId || null,
+      // ========== BUSINESS LOGIC (delegata al service) ==========
+      const document = await documentService.uploadDocument({
+        organizationId,
+        userId: session.user.id,
         ownerType: "DEADLINE",
         ownerId: deadlineId,
         deadlineId: deadlineId, // Campo esplicito per la relazione
+        file: {
+          name: file.name,
+          type: file.type || null,
+          size: file.size,
+          buffer,
+        },
+        templateId,
+        expiryDate,
+        notes,
+      });
+
+      // ========== RESPONSE ==========
+      logger.info({
+        msg: "Document uploaded successfully",
+        documentId: document.id,
         fileName: file.name,
-        fileType: file.type || null,
         fileSize: file.size,
-        storagePath: filePath,
-        uploadedById: session.user.id,
-        expiryDate: expiryDate ? new Date(expiryDate) : null,
-        isExpired: isExpired,
-        notes: notes?.trim() || null,
-      },
-      include: {
-        documentTemplate: true,
-        uploadedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
+      });
 
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        organizationId: organizationId,
-        userId: session.user.id,
-        action: "UPLOAD_DOCUMENT",
-        entity: "Document",
-        entityId: document.id,
-        metadata: {
-          fileName: file.name,
-          deadlineId: deadlineId,
-          templateId: templateId,
-        },
-      },
-    });
-
-    // NOTA: Non marchiamo più automaticamente la scadenza come completata
-    // L'utente deve farlo manualmente dalla UI
-    // Questo permette di caricare più documenti o sostituire documenti anche per scadenze completate
-
-    return NextResponse.json({ document });
-  } catch (error) {
-    console.error("Errore upload documento scadenza:", error);
-    return NextResponse.json(
-      { error: "Errore nell'upload del documento" },
-      { status: 500 },
-    );
-  }
-}
+      return NextResponse.json({ document });
+    } catch (error) {
+      return handleServiceError(error, logger);
+    }
+  },
+);

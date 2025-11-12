@@ -8,9 +8,10 @@ datasource db {
 }
 
 enum OrgUserRole {
-  OWNER
-  ADMIN
-  MEMBER
+  OWNER // Proprietario organizzazione (legacy, equivale ad ADMIN)
+  ADMIN // Admin organizzazione - gestisce template ORG, utenti, strutture
+  MANAGER // Manager struttura - gestisce scadenze della struttura, non template
+  OPERATOR // Operatore - solo visualizzazione e caricamento documenti
 }
 
 enum OrganizationType {
@@ -96,12 +97,14 @@ model User {
   accountStatus            String    @default("PENDING_VERIFICATION") // PENDING_VERIFICATION, PENDING_APPROVAL, APPROVED, REJECTED
   emailVerificationToken   String?
   emailVerificationExpires DateTime?
+  needsOnboarding          Boolean   @default(false) // true se approvato da Super Admin ma senza organizzazione
 
   accounts          Account[]
   sessions          Session[]
   organizationUsers OrganizationUser[]
   documents         Document[]
   auditLogs         AuditLog[]
+  invitesSent       InviteToken[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -183,6 +186,7 @@ model Organization {
   documentTemplates DocumentTemplate[]
   documents         Document[]
   auditLogs         AuditLog[]
+  inviteTokens      InviteToken[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -191,16 +195,20 @@ model Organization {
 model OrganizationUser {
   id             String      @id @default(cuid())
   organizationId String
-  userId         String      @unique // MODIFICATO: Un utente può avere solo 1 organizzazione
-  role           OrgUserRole @default(OWNER) // Se 1 user = 1 org, è sempre OWNER
+  userId         String      @unique // Un utente può avere solo 1 organizzazione
+  role           OrgUserRole @default(ADMIN) // Ruolo dell'utente nell'organizzazione
+  structureId    String? // Se MANAGER/OPERATOR, struttura specifica di competenza
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  structure    Structure?   @relation(fields: [structureId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+  @@index([organizationId, role])
+  @@index([structureId])
 }
 
 model Structure {
@@ -238,6 +246,8 @@ model Structure {
   personStructures  PersonStructure[]
   roleAssignments   RoleAssignment[]
   deadlineInstances DeadlineInstance[]
+  organizationUsers OrganizationUser[] // Utenti assegnati a questa struttura (MANAGER/OPERATOR)
+  inviteTokens      InviteToken[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -315,8 +325,8 @@ model DeadlineTemplate {
   complianceType       ComplianceType
   title                String
   description          String?
-  recurrenceUnit       RecurrenceUnit
-  recurrenceEvery      Int
+  recurrenceUnit       RecurrenceUnit?
+  recurrenceEvery      Int?
   firstDueOffsetDays   Int               @default(0)
   anchor               AnchorType
   roleTemplateId       String?
@@ -510,6 +520,31 @@ model AuditLog {
 
   @@index([organizationId, createdAt])
   @@index([userId, createdAt])
+}
+
+model InviteToken {
+  id             String      @id @default(cuid())
+  token          String      @unique @default(cuid())
+  email          String
+  organizationId String
+  role           OrgUserRole
+  structureId    String? // Required per MANAGER/OPERATOR
+  invitedBy      String // userId dell'Owner/Admin che ha invitato
+  expiresAt      DateTime
+  usedAt         DateTime?
+  usedByUserId   String? // userId che ha usato il token
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  structure    Structure?   @relation(fields: [structureId], references: [id], onDelete: Cascade)
+  inviter      User         @relation(fields: [invitedBy], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([token])
+  @@index([email])
+  @@index([organizationId])
+  @@index([usedAt])
 }
 
 model ProvinceRegionMapping {

@@ -1,40 +1,79 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createTemplateSchema } from "@/lib/validation/template";
-import { validateRequest } from "@/lib/validation/validate";
+import { getCurrentUserWithRole } from "@/lib/auth-utils";
+import {
+  canViewTemplates,
+  canManageOrgTemplates,
+  hasAccessToOrganization,
+} from "@/lib/permissions";
+import { createApiLogger } from "@/lib/logger";
+import { templateService } from "@/lib/services/template-service";
+import { handleServiceError } from "@/lib/api/handle-service-error";
 
+/**
+ * GET /api/organizations/[id]/deadline-templates
+ * Recupera template con filtro regionale
+ */
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id: organizationId } = await params;
+  const session = await auth();
+
+  const logger = createApiLogger(
+    "GET",
+    `/api/organizations/${organizationId}/deadline-templates`,
+    session?.user?.id,
+    organizationId,
+  );
+
   try {
-    const session = await auth();
+    // ========== AUTENTICAZIONE ==========
     if (!session?.user?.id) {
+      logger.warn({ msg: "Unauthorized access attempt" });
       return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
     }
 
-    const { id: organizationId } = await params;
-
-    // Verifica che l'utente abbia accesso a questa organizzazione
-    const orgUser = await prisma.organizationUser.findFirst({
-      where: {
-        organizationId: organizationId,
-        userId: session.user.id,
-      },
+    logger.info({
+      msg: "Fetching templates",
+      userId: session.user.id,
     });
 
-    if (!orgUser && !session.user.isSuperAdmin) {
+    // ========== AUTORIZZAZIONE ==========
+    const user = await getCurrentUserWithRole();
+    if (!user) {
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+    }
+
+    if (!hasAccessToOrganization(user, organizationId)) {
+      logger.warn({
+        msg: "Access denied to organization",
+        userId: session.user.id,
+        organizationId,
+      });
       return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
     }
 
+    if (!canViewTemplates(user)) {
+      logger.warn({
+        msg: "Permission denied to view templates",
+        userId: session.user.id,
+      });
+      return NextResponse.json(
+        { error: "Non hai i permessi per visualizzare i template" },
+        { status: 403 },
+      );
+    }
+
+    // ========== REGIONAL FILTERING LOGIC ==========
     // Ottieni le regioni delle strutture dell'organizzazione tramite provincia
     const structures = await prisma.structure.findMany({
       where: { organizationId, active: true },
       select: { province: true },
     });
 
-    // Estrai province uniche e trova le regioni corrispondenti
     const provinces = [
       ...new Set(structures.map((s) => s.province).filter(Boolean)),
     ] as string[];
@@ -48,130 +87,102 @@ export async function GET(
       userRegions = [...new Set(regionMappings.map((m) => m.regionName))];
     }
 
-    // Recupera TUTTI i template GLOBAL e ORG
-    const allTemplates = await prisma.deadlineTemplate.findMany({
-      where: {
-        OR: [
-          // Template globali attivi
-          { ownerType: "GLOBAL", active: true },
-          // Template dell'organizzazione
-          { ownerType: "ORG", organizationId: organizationId, active: true },
-        ],
+    // ========== BUSINESS LOGIC (delegata al service) ==========
+    const templates = await templateService.getTemplates({
+      organizationId,
+      userId: session.user.id,
+      filters: {
+        regions: userRegions,
       },
-      orderBy: [{ complianceType: "asc" }, { title: "asc" }],
     });
 
-    // Filtra i template in base alle regioni (solo per GLOBAL)
-    const templates = allTemplates.filter((template) => {
-      // Template ORG: sempre inclusi
-      if (template.ownerType === "ORG") {
-        return true;
-      }
-
-      // Template GLOBAL senza regioni specifiche: validi per tutta Italia
-      if (!template.regions) {
-        return true;
-      }
-
-      // Template GLOBAL con regioni specifiche: verifica se almeno una regione corrisponde
-      try {
-        const templateRegions = JSON.parse(template.regions) as string[];
-        if (!Array.isArray(templateRegions) || templateRegions.length === 0) {
-          // Se regions è vuoto o non valido, consideriamolo nazionale
-          return true;
-        }
-        // Verifica se c'è almeno una regione in comune
-        return userRegions.some((userRegion) =>
-          templateRegions.includes(userRegion),
-        );
-      } catch (error) {
-        // Se il parsing fallisce, consideriamo il template nazionale
-        console.warn(
-          `Errore parsing regions per template ${template.id}:`,
-          error,
-        );
-        return true;
-      }
+    // ========== RESPONSE ==========
+    logger.info({
+      msg: "Templates retrieved successfully",
+      count: templates.length,
     });
-
     return NextResponse.json({ templates });
   } catch (error) {
-    console.error("Errore recupero template:", error);
-    return NextResponse.json(
-      { error: "Errore nel recupero dei template" },
-      { status: 500 },
-    );
+    return handleServiceError(error, logger);
   }
 }
 
+/**
+ * POST /api/organizations/[id]/deadline-templates
+ * Crea un nuovo template ORG
+ */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id: organizationId } = await params;
+  const session = await auth();
+
+  const logger = createApiLogger(
+    "POST",
+    `/api/organizations/${organizationId}/deadline-templates`,
+    session?.user?.id,
+    organizationId,
+  );
+
   try {
-    const session = await auth();
+    // ========== AUTENTICAZIONE ==========
     if (!session?.user?.id) {
+      logger.warn({ msg: "Unauthorized create template attempt" });
       return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
     }
 
-    const { id: organizationId } = await params;
-
-    // Verifica che l'utente abbia accesso a questa organizzazione
-    const orgUser = await prisma.organizationUser.findFirst({
-      where: {
-        organizationId: organizationId,
-        userId: session.user.id,
-      },
+    logger.info({
+      msg: "Creating template",
+      userId: session.user.id,
     });
 
-    if (!orgUser && !session.user.isSuperAdmin) {
+    // ========== AUTORIZZAZIONE ==========
+    const user = await getCurrentUserWithRole();
+    if (!user) {
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+    }
+
+    if (!hasAccessToOrganization(user, organizationId)) {
+      logger.warn({
+        msg: "Access denied to organization",
+        userId: session.user.id,
+        organizationId,
+      });
       return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
     }
 
-    const body = await request.json();
-
-    // Validazione con Zod
-    const validation = validateRequest(createTemplateSchema, body);
-    if (!validation.success) {
-      return validation.error;
+    if (!canManageOrgTemplates(user)) {
+      logger.warn({
+        msg: "Permission denied to create templates",
+        userId: session.user.id,
+      });
+      return NextResponse.json(
+        {
+          error:
+            "Non hai i permessi per creare template. Solo gli amministratori possono creare template per l'organizzazione.",
+        },
+        { status: 403 },
+      );
     }
 
-    const {
-      title,
-      complianceType,
-      description,
-      scope,
-      recurrenceUnit,
-      recurrenceEvery,
-      firstDueOffsetDays,
-      anchor,
-      requiredDocumentName,
-    } = validation.data;
+    // ========== PARSING INPUT ==========
+    const body = await request.json();
 
-    // Crea il nuovo template
-    const template = await prisma.deadlineTemplate.create({
-      data: {
-        title,
-        complianceType,
-        description: description || null,
-        scope,
-        ownerType: "ORG",
-        organizationId,
-        recurrenceUnit,
-        recurrenceEvery,
-        firstDueOffsetDays,
-        anchor,
-        requiredDocumentName: requiredDocumentName || null,
-        active: true,
-      },
+    // ========== BUSINESS LOGIC (delegata al service) ==========
+    const template = await templateService.createTemplate({
+      organizationId,
+      userId: session.user.id,
+      data: body,
     });
 
+    // ========== RESPONSE ==========
+    logger.info({
+      msg: "Template created successfully",
+      templateId: template.id,
+    });
     return NextResponse.json({ template }, { status: 201 });
   } catch (error) {
-    console.error("Errore creazione template:", error);
-    return NextResponse.json(
-      { error: "Errore nella creazione del template" },
-      { status: 500 },
-    );
+    return handleServiceError(error, logger);
   }
 }

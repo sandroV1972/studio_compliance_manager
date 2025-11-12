@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PasswordStrengthIndicator } from "@/components/ui/password-strength-indicator";
 import {
   AlertCircle,
   CheckCircle2,
@@ -68,8 +69,26 @@ function ResetPasswordForm() {
   }, [token]);
 
   const validatePassword = () => {
-    if (password.length < 8) {
-      setError("La password deve contenere almeno 8 caratteri");
+    // Validazione requisiti password
+    const passwordErrors = [];
+    if (password.length < 12) {
+      passwordErrors.push("almeno 12 caratteri");
+    }
+    if (!/[A-Z]/.test(password)) {
+      passwordErrors.push("una lettera maiuscola");
+    }
+    if (!/[a-z]/.test(password)) {
+      passwordErrors.push("una lettera minuscola");
+    }
+    if (!/\d/.test(password)) {
+      passwordErrors.push("un numero");
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      passwordErrors.push("un carattere speciale");
+    }
+
+    if (passwordErrors.length > 0) {
+      setError(`La password deve contenere: ${passwordErrors.join(", ")}`);
       return false;
     }
 
@@ -212,12 +231,13 @@ function ResetPasswordForm() {
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Almeno 8 caratteri"
+                    placeholder="Minimo 12 caratteri"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     disabled={loading}
                     className="pr-10"
+                    minLength={12}
                   />
                   <button
                     type="button"
@@ -231,9 +251,7 @@ function ResetPasswordForm() {
                     )}
                   </button>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Usa almeno 8 caratteri con lettere e numeri
-                </p>
+                <PasswordStrengthIndicator password={password} />
               </div>
 
               <div className="space-y-2">
@@ -248,6 +266,7 @@ function ResetPasswordForm() {
                     required
                     disabled={loading}
                     className="pr-10"
+                    minLength={12}
                   />
                   <button
                     type="button"
@@ -262,32 +281,6 @@ function ResetPasswordForm() {
                   </button>
                 </div>
               </div>
-
-              {/* Password strength indicator */}
-              {password && (
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <div
-                      className={`h-1 flex-1 rounded ${password.length >= 8 ? "bg-green-500" : "bg-gray-300"}`}
-                    />
-                    <div
-                      className={`h-1 flex-1 rounded ${password.length >= 12 ? "bg-green-500" : "bg-gray-300"}`}
-                    />
-                    <div
-                      className={`h-1 flex-1 rounded ${/[A-Z]/.test(password) && /[0-9]/.test(password) ? "bg-green-500" : "bg-gray-300"}`}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {password.length < 8
-                      ? "Debole - Usa almeno 8 caratteri"
-                      : password.length < 12
-                        ? "Media - Aggiungi più caratteri"
-                        : /[A-Z]/.test(password) && /[0-9]/.test(password)
-                          ? "Forte - Ottima password!"
-                          : "Buona - Aggiungi maiuscole e numeri"}
-                  </p>
-                </div>
-              )}
             </CardContent>
 
             <CardFooter className="flex flex-col space-y-4">

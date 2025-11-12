@@ -1,27 +1,65 @@
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { withCSRFProtection } from "@/lib/csrf";
+import { createApiLogger } from "@/lib/logger";
+import { userService } from "@/lib/services/user-service";
+import { handleServiceError } from "@/lib/api/handle-service-error";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+  ErrorCodes,
+} from "@/lib/api/response-envelope";
 
+/**
+ * PATCH /api/admin/users/[id]
+ * Aggiorna un utente (admin)
+ */
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
-    const session = await auth();
+  const session = await auth();
+  const { id: userId } = await params;
 
-    if (!session?.user?.isSuperAdmin) {
-      return NextResponse.json(
-        { error: "Non autorizzato" },
-        { status: 403 }
+  const logger = createApiLogger(
+    "PATCH",
+    `/api/admin/users/${userId}`,
+    session?.user?.id,
+  );
+
+  try {
+    // ========== AUTENTICAZIONE ==========
+    if (!session?.user?.id) {
+      logger.warn({ msg: "Unauthorized update attempt" });
+      return createErrorResponse(
+        ErrorCodes.UNAUTHORIZED,
+        "Non autorizzato",
+        401,
       );
     }
 
-    const resolvedParams = await params;
+    logger.info({
+      msg: "Updating user",
+      userId: session.user.id,
+      targetUserId: userId,
+    });
+
+    // ========== AUTORIZZAZIONE ==========
+    if (!session.user.isSuperAdmin) {
+      logger.warn({
+        msg: "Permission denied - Super Admin only",
+        userId: session.user.id,
+      });
+      return createErrorResponse(ErrorCodes.FORBIDDEN, "Non autorizzato", 403);
+    }
+
+    // ========== PARSING INPUT ==========
     const body = await request.json();
     const { name, email, isSuperAdmin } = body;
 
-    const user = await prisma.user.update({
-      where: { id: resolvedParams.id },
+    // ========== BUSINESS LOGIC (delegata al service) ==========
+    const user = await userService.updateUser({
+      userId,
+      adminUserId: session.user.id,
       data: {
         name,
         email,
@@ -29,42 +67,79 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json(user);
-  } catch (error) {
-    console.error("Error updating user:", error);
-    return NextResponse.json(
-      { error: "Errore durante l'aggiornamento dell'utente" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await auth();
-
-    if (!session?.user?.isSuperAdmin) {
-      return NextResponse.json(
-        { error: "Non autorizzato" },
-        { status: 403 }
-      );
-    }
-
-    const resolvedParams = await params;
-
-    await prisma.user.delete({
-      where: { id: resolvedParams.id },
+    // ========== RESPONSE ==========
+    logger.info({
+      msg: "User updated successfully",
+      updatedUserId: user.id,
     });
-
-    return NextResponse.json({ success: true });
+    return createSuccessResponse(user);
   } catch (error) {
-    console.error("Error deleting user:", error);
-    return NextResponse.json(
-      { error: "Errore durante l'eliminazione dell'utente" },
-      { status: 500 }
-    );
+    return handleServiceError(error, logger);
   }
 }
+
+/**
+ * DELETE /api/admin/users/[id]
+ * Elimina un utente (admin)
+ */
+export const DELETE = withCSRFProtection(
+  async (
+    _request: Request,
+    { params }: { params: Promise<{ id: string }> },
+  ) => {
+    const session = await auth();
+    const { id: userId } = await params;
+
+    const logger = createApiLogger(
+      "DELETE",
+      `/api/admin/users/${userId}`,
+      session?.user?.id,
+    );
+
+    try {
+      // ========== AUTENTICAZIONE ==========
+      if (!session?.user?.id) {
+        logger.warn({ msg: "Unauthorized delete attempt" });
+        return createErrorResponse(
+          ErrorCodes.UNAUTHORIZED,
+          "Non autorizzato",
+          401,
+        );
+      }
+
+      logger.info({
+        msg: "Deleting user",
+        userId: session.user.id,
+        targetUserId: userId,
+      });
+
+      // ========== AUTORIZZAZIONE ==========
+      if (!session.user.isSuperAdmin) {
+        logger.warn({
+          msg: "Permission denied - Super Admin only",
+          userId: session.user.id,
+        });
+        return createErrorResponse(
+          ErrorCodes.FORBIDDEN,
+          "Non autorizzato",
+          403,
+        );
+      }
+
+      // ========== BUSINESS LOGIC (delegata al service) ==========
+      await userService.deleteUser({
+        userId,
+        adminUserId: session.user.id,
+      });
+
+      // ========== RESPONSE ==========
+      logger.info({
+        msg: "User deleted successfully",
+        deletedUserId: userId,
+      });
+      return createSuccessResponse({ success: true });
+    } catch (error) {
+      return handleServiceError(error, logger);
+    }
+  },
+);

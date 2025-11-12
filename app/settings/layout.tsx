@@ -40,7 +40,7 @@ export default async function SettingsLayout({
               href={dashboardLink}
               className="flex items-center hover:opacity-80 transition-opacity flex-shrink-0"
             >
-              <Logo className="h-10 w-10 lg:h-12 lg:w-12" />
+              <Logo className="h-16 w-16" />
             </Link>
 
             {/* Desktop Navigation */}

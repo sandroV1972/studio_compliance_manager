@@ -91,7 +91,7 @@ export default function ReportsPage() {
 
       // Filtra TUTTE le scadenze nel periodo che sono PENDING
       // Non solo quelle che richiedono documenti
-      const allDeadlinesInPeriod = data.deadlines
+      const allDeadlinesInPeriod = (data.data || [])
         .filter((deadline: any) => {
           const dueDate = new Date(deadline.dueDate);
           const isInPeriod = dueDate >= now && dueDate <= periodEnd;

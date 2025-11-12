@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Settings, User, Building2 } from "lucide-react";
+import { User } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 
 export default async function OnboardingLayout({
@@ -20,31 +20,14 @@ export default async function OnboardingLayout({
       <header className="border-b bg-gradient-to-r from-purple-600 to-blue-600 sticky top-0 z-50 shadow-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-6">
-            <Link
-              href="/dashboard"
-              className="flex items-center hover:opacity-80 transition-opacity"
-            >
-              <Logo className="h-12 w-12" />
-            </Link>
-            <nav className="flex items-center gap-1">
-              <Link
-                href="/organizations"
-                className="text-sm text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-all flex items-center gap-1"
-              >
-                <Building2 className="h-4 w-4" />
-                Strutture
-              </Link>
-            </nav>
+            <div className="flex items-center">
+              <Logo className="h-16 w-16" />
+            </div>
+            <div className="text-white font-semibold">
+              Configurazione Iniziale
+            </div>
           </div>
           <div className="flex items-center gap-4">
-            <Link
-              href="/settings/profile"
-              className="flex items-center gap-2 text-sm text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-all"
-            >
-              <Settings className="h-4 w-4" />
-              Impostazioni
-            </Link>
-            <div className="h-8 w-px bg-white/20"></div>
             <div className="flex items-center gap-2 text-white/90">
               <User className="h-4 w-4" />
               <span className="text-sm">

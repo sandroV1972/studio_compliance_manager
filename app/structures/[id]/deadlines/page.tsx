@@ -43,6 +43,10 @@ export default function DeadlinesPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedDeadlineId, setSelectedDeadlineId] = useState<string>("");
   const [organizationId, setOrganizationId] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [limit] = useState(20);
 
   useEffect(() => {
     loadOrganization();
@@ -52,7 +56,7 @@ export default function DeadlinesPage() {
     if (organizationId) {
       loadDeadlines();
     }
-  }, [organizationId]);
+  }, [organizationId, currentPage]);
 
   const loadOrganization = async () => {
     try {
@@ -68,13 +72,18 @@ export default function DeadlinesPage() {
   const loadDeadlines = async () => {
     try {
       const response = await fetch(
-        `/api/organizations/${organizationId}/deadlines?nextOccurrenceOnly=true`,
+        `/api/organizations/${organizationId}/deadlines?nextOccurrenceOnly=true&page=${currentPage}&limit=${limit}`,
       );
       if (!response.ok) throw new Error("Errore nel caricamento");
       const data = await response.json();
-      setDeadlines(data.deadlines);
+      setDeadlines(data.data || []);
+      setTotalPages(data.metadata?.totalPages || 1);
+      setTotal(data.metadata?.total || 0);
     } catch (error) {
-      console.error("Errore:", error);
+      console.error("Errore caricamento scadenze:", error);
+      setDeadlines([]);
+      setTotalPages(1);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -143,7 +152,7 @@ export default function DeadlinesPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Link href="/settings/deadline-templates">
+          <Link href={`/structures/${structureId}/deadline-templates`}>
             <Button variant="outline">
               <Settings className="mr-2 h-4 w-4" />
               Gestisci Adempimenti
@@ -176,7 +185,8 @@ export default function DeadlinesPage() {
         <CardHeader>
           <CardTitle>Tutte le Scadenze</CardTitle>
           <CardDescription>
-            Lista completa delle scadenze in ordine cronologico
+            Lista completa delle scadenze in ordine cronologico ({total}{" "}
+            {total === 1 ? "scadenza" : "scadenze"})
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -185,81 +195,112 @@ export default function DeadlinesPage() {
               Nessuna scadenza trovata
             </p>
           ) : (
-            <div className="space-y-4">
-              {deadlines.map((deadline) => {
-                const statusInfo = getStatusInfo(
-                  deadline.status,
-                  deadline.dueDate,
-                );
-                return (
-                  <div
-                    key={deadline.id}
-                    className="relative flex items-start justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors overflow-hidden"
-                  >
-                    {/* Fascia colorata a destra */}
+            <>
+              <div className="space-y-4">
+                {deadlines.map((deadline) => {
+                  const statusInfo = getStatusInfo(
+                    deadline.status,
+                    deadline.dueDate,
+                  );
+                  return (
                     <div
-                      className={`absolute top-0 right-0 bottom-0 w-1.5 ${statusInfo.bgColor}`}
-                    />
+                      key={deadline.id}
+                      className="relative flex items-start justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors overflow-hidden"
+                    >
+                      {/* Fascia colorata a destra */}
+                      <div
+                        className={`absolute top-0 right-0 bottom-0 w-1.5 ${statusInfo.bgColor}`}
+                      />
 
-                    <div className="flex-1 pr-4">
-                      <div className="font-medium text-lg">
-                        {deadline.title}
+                      <div className="flex-1 pr-4">
+                        <div className="font-medium text-lg">
+                          {deadline.title}
+                        </div>
+                        {deadline.template && (
+                          <div className="text-sm text-muted-foreground">
+                            {deadline.template.title} -{" "}
+                            {deadline.template.complianceType}
+                          </div>
+                        )}
+                        {deadline.person && (
+                          <div className="text-sm text-muted-foreground">
+                            Persona: {deadline.person.firstName}{" "}
+                            {deadline.person.lastName}
+                          </div>
+                        )}
+                        {deadline.structure && (
+                          <div className="text-sm text-muted-foreground">
+                            Struttura: {deadline.structure.name}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 mt-2">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">
+                            {formatDate(deadline.dueDate)}
+                          </span>
+                        </div>
+                        {/* Bottone documenti in basso */}
+                        {deadline.template?.requiredDocumentName && (
+                          <div className="mt-3">
+                            <DeadlineDocumentsBadge
+                              organizationId={organizationId}
+                              deadlineId={deadline.id}
+                              requiredDocumentName={
+                                deadline.template.requiredDocumentName
+                              }
+                              structureId={structureId}
+                              structureName={deadline.structure?.name || ""}
+                            />
+                          </div>
+                        )}
                       </div>
-                      {deadline.template && (
-                        <div className="text-sm text-muted-foreground">
-                          {deadline.template.title} -{" "}
-                          {deadline.template.complianceType}
-                        </div>
-                      )}
-                      {deadline.person && (
-                        <div className="text-sm text-muted-foreground">
-                          Persona: {deadline.person.firstName}{" "}
-                          {deadline.person.lastName}
-                        </div>
-                      )}
-                      {deadline.structure && (
-                        <div className="text-sm text-muted-foreground">
-                          Struttura: {deadline.structure.name}
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2 mt-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">
-                          {formatDate(deadline.dueDate)}
-                        </span>
-                      </div>
-                      {/* Bottone documenti in basso */}
-                      {deadline.template?.requiredDocumentName && (
-                        <div className="mt-3">
-                          <DeadlineDocumentsBadge
-                            organizationId={organizationId}
-                            deadlineId={deadline.id}
-                            requiredDocumentName={
-                              deadline.template.requiredDocumentName
-                            }
-                            structureId={structureId}
-                            structureName={deadline.structure?.name || ""}
-                          />
-                        </div>
-                      )}
-                    </div>
 
-                    {/* Solo bottone Modifica a destra */}
-                    <div className="flex items-start">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditClick(deadline.id)}
-                        className="flex items-center gap-2"
-                      >
-                        <Edit className="h-4 w-4" />
-                        Modifica
-                      </Button>
+                      {/* Solo bottone Modifica a destra */}
+                      <div className="flex items-start">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditClick(deadline.id)}
+                          className="flex items-center gap-2"
+                        >
+                          <Edit className="h-4 w-4" />
+                          Modifica
+                        </Button>
+                      </div>
                     </div>
+                  );
+                })}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Pagina {currentPage} di {totalPages}
                   </div>
-                );
-              })}
-            </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Precedente
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCurrentPage((p) => Math.min(totalPages, p + 1))
+                      }
+                      disabled={currentPage === totalPages}
+                    >
+                      Successiva
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

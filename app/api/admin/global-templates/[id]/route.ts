@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { withCSRFProtection } from "@/lib/csrf";
+import { createApiLogger } from "@/lib/logger";
 
 // GET - Ottieni singolo template GLOBAL
 export async function GET(
@@ -16,6 +18,12 @@ export async function GET(
 
     const { id } = await params;
 
+    const logger = createApiLogger(
+      "GET",
+      `/api/admin/global-templates/${id}`,
+      session.user.id,
+    );
+
     const template = await prisma.deadlineTemplate.findUnique({
       where: { id, ownerType: "GLOBAL" },
     });
@@ -27,9 +35,18 @@ export async function GET(
       );
     }
 
+    logger.info({
+      msg: "Global template retrieved successfully",
+      templateId: template.id,
+    });
     return NextResponse.json({ template });
   } catch (error) {
-    console.error("Error loading global template:", error);
+    const logger = createApiLogger("GET", "/api/admin/global-templates/[id]");
+    logger.error({
+      msg: "Error loading global template",
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
       { error: "Errore durante il caricamento del template" },
       { status: 500 },
@@ -51,6 +68,12 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
+
+    const logger = createApiLogger(
+      "PATCH",
+      `/api/admin/global-templates/${id}`,
+      session.user.id,
+    );
 
     // Gestisci regions: può arrivare come stringa JSON o come array
     let regionsJson = null;
@@ -87,9 +110,18 @@ export async function PATCH(
       },
     });
 
+    logger.info({
+      msg: "Global template updated successfully",
+      templateId: template.id,
+    });
     return NextResponse.json(template);
   } catch (error) {
-    console.error("Error updating global template:", error);
+    const logger = createApiLogger("PATCH", "/api/admin/global-templates/[id]");
+    logger.error({
+      msg: "Error updating global template",
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
       { error: "Errore durante l'aggiornamento del template" },
       { status: 500 },
@@ -97,29 +129,49 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const session = await auth();
+export const DELETE = withCSRFProtection(
+  async (
+    _request: Request,
+    { params }: { params: Promise<{ id: string }> },
+  ) => {
+    try {
+      const session = await auth();
 
-    if (!session?.user?.isSuperAdmin) {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+      if (!session?.user?.isSuperAdmin) {
+        return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+      }
+
+      const { id } = await params;
+
+      const logger = createApiLogger(
+        "DELETE",
+        `/api/admin/global-templates/${id}`,
+        session.user.id,
+      );
+
+      await prisma.deadlineTemplate.delete({
+        where: { id },
+      });
+
+      logger.info({
+        msg: "Global template deleted successfully",
+        templateId: id,
+      });
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      const logger = createApiLogger(
+        "DELETE",
+        "/api/admin/global-templates/[id]",
+      );
+      logger.error({
+        msg: "Error deleting global template",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return NextResponse.json(
+        { error: "Errore durante l'eliminazione del template" },
+        { status: 500 },
+      );
     }
-
-    const { id } = await params;
-
-    await prisma.deadlineTemplate.delete({
-      where: { id },
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Error deleting global template:", error);
-    return NextResponse.json(
-      { error: "Errore durante l'eliminazione del template" },
-      { status: 500 },
-    );
-  }
-}
+  },
+);

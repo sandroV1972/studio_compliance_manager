@@ -1,60 +1,89 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { sendApprovalEmail } from "@/lib/email";
+import { createApiLogger } from "@/lib/logger";
+import { userService } from "@/lib/services/user-service";
+import { handleServiceError } from "@/lib/api/handle-service-error";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+  ErrorCodes,
+} from "@/lib/api/response-envelope";
 
+/**
+ * POST /api/admin/users/approve
+ * Approva un utente in attesa
+ */
 export async function POST(request: Request) {
-  try {
-    const session = await auth();
+  const session = await auth();
 
-    if (!session?.user?.isSuperAdmin) {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
+  const logger = createApiLogger(
+    "POST",
+    "/api/admin/users/approve",
+    session?.user?.id,
+  );
+
+  try {
+    // ========== AUTENTICAZIONE ==========
+    if (!session?.user?.id) {
+      logger.warn({ msg: "Unauthorized approve attempt" });
+      return createErrorResponse(
+        ErrorCodes.UNAUTHORIZED,
+        "Non autorizzato",
+        401,
+      );
     }
 
+    logger.info({
+      msg: "Approving user",
+      userId: session.user.id,
+    });
+
+    // ========== AUTORIZZAZIONE ==========
+    if (!session.user.isSuperAdmin) {
+      logger.warn({
+        msg: "Permission denied - Super Admin only",
+        userId: session.user.id,
+      });
+      return createErrorResponse(ErrorCodes.FORBIDDEN, "Non autorizzato", 403);
+    }
+
+    // ========== PARSING INPUT ==========
     const body = await request.json();
     const { userId } = body;
 
     if (!userId) {
-      return NextResponse.json(
-        { error: "ID utente mancante" },
-        { status: 400 },
+      return createErrorResponse(
+        ErrorCodes.MISSING_REQUIRED_FIELD,
+        "ID utente mancante",
+        400,
+        { field: "userId" },
       );
     }
 
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        accountStatus: "APPROVED",
-      },
+    // ========== BUSINESS LOGIC (delegata al service) ==========
+    const user = await userService.approveUser({
+      userId,
+      adminUserId: session.user.id,
     });
 
-    // Invia email di approvazione
-    try {
-      await sendApprovalEmail(user.email, user.name || "Utente");
-      console.log("✅ Email di approvazione inviata a:", user.email);
-    } catch (emailError) {
-      console.error("❌ Errore invio email approvazione:", emailError);
-      // Non blocchiamo l'approvazione se l'email fallisce
-    }
+    // ========== RESPONSE ==========
+    logger.info({
+      msg: "User approved successfully",
+      approvedUserId: user.id,
+      email: user.email,
+      needsOnboarding: user.needsOnboarding,
+    });
 
-    console.log("=== USER APPROVED ===");
-    console.log("User:", user.email);
-    console.log("Approved by:", session.user.email);
-    console.log("====================");
-
-    return NextResponse.json({
-      message: "Utente approvato con successo",
+    return createSuccessResponse({
+      message:
+        "Utente approvato con successo. Dovrà creare un'organizzazione al primo accesso.",
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
+        needsOnboarding: user.needsOnboarding,
       },
     });
   } catch (error) {
-    console.error("Error approving user:", error);
-    return NextResponse.json(
-      { error: "Errore nell'approvazione dell'utente" },
-      { status: 500 },
-    );
+    return handleServiceError(error, logger);
   }
 }

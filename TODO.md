@@ -26,26 +26,26 @@
   - Token mechanism + email templates
   - Endpoints: `/api/auth/forgot-password`, `/api/auth/reset-password`
 
-- [ ] **Rate Limiting:** Assente su tutti gli endpoint
+- [x] **Rate Limiting:** Assente su tutti gli endpoint
   - Implementare con `express-rate-limit` o simile
   - Protezione contro brute-force su login/registrazione
 
-- [ ] **Input Validation:** Solo auth usa Zod
+- [x] **Input Validation:** Solo auth usa Zod
   - Estendere validazione Zod a tutti gli endpoint API
   - Schema validation per request bodies
   - Errori validazione strutturati
 
-- [ ] **Password Requirements:** Troppo deboli (solo 8+ caratteri)
+- [x] **Password Requirements:** Troppo deboli (solo 8+ caratteri)
   - Aggiungere: maiuscole, minuscole, numeri, caratteri speciali
   - Implementare password strength meter nel frontend
 
-- [ ] **CSRF Protection:** Mancante
+- [x] **CSRF Protection:** Mancante
   - Implementare token CSRF per form critici
   - Protezione per operazioni di modifica/cancellazione
 
 ### Funzionalità Mancanti
 
-- [ ] **Document-Deadline Linking:** Endpoint mancante
+- [x] **Document-Deadline Linking:** Endpoint mancante
   - TODO trovato in: `components/documents/upload-document-modal.tsx:250`
   - Endpoint: `POST /api/organizations/[id]/deadlines/[deadlineId]/documents`
   - Necessario per collegare documenti caricati a scadenze specifiche
@@ -60,21 +60,21 @@
 
 ### Backend
 
-- [ ] **Paginazione:** Implementare per tutti gli endpoint lista
+- [x] **Paginazione:** Implementare per tutti gli endpoint lista
   - Parametri: `page`, `limit`, `sort`, `order`
   - Response con metadata: `total`, `page`, `totalPages`
 
-- [ ] **Logging Strutturato:** Winston o Pino
+- [x] **Logging Strutturato:** Winston o Pino
   - Log levels appropriati (error, warn, info, debug)
   - Log rotation e archiviazione
   - Integrazione con monitoring tools
 
-- [ ] **Business Logic Layer:** Separare da API routes
+- [x] **Business Logic Layer:** Separare da API routes
   - Creare service layer (`lib/services/`)
   - Maggiore testabilità e riusabilità
   - Separazione delle responsabilità
 
-- [ ] **API Response Envelope:** Standardizzare formato
+- [x] **API Response Envelope:** Standardizzare formato
   ```typescript
   {
     success: boolean,

@@ -257,7 +257,6 @@ export default function UploadDocumentModal({
 
       let endpoint: string;
       if (documentType === "DEADLINE") {
-        // TODO: Creare endpoint per documenti legati a deadline
         endpoint = `/api/organizations/${organizationId}/deadlines/${selectedDeadlineId}/documents`;
       } else {
         const targetId =

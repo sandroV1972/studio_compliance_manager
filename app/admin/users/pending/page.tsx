@@ -1,11 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle, XCircle, Clock, Mail, User } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Mail,
+  User,
+} from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import { ApproveUserModal } from "@/components/admin/approve-user-modal";
 
 interface PendingUser {
   id: string;
@@ -19,6 +33,8 @@ export default function PendingUsersPage() {
   const [users, setUsers] = useState<PendingUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<PendingUser | null>(null);
 
   const fetchPendingUsers = async () => {
     try {
@@ -38,25 +54,17 @@ export default function PendingUsersPage() {
     fetchPendingUsers();
   }, []);
 
-  const handleApprove = async (userId: string) => {
-    setActionLoading(userId);
-    try {
-      const response = await fetch("/api/admin/users/approve", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ userId }),
-      });
+  const handleApprove = (user: PendingUser) => {
+    setSelectedUser(user);
+    setApproveModalOpen(true);
+  };
 
-      if (response.ok) {
-        setUsers(users.filter((u) => u.id !== userId));
-      }
-    } catch (error) {
-      console.error("Error approving user:", error);
-    } finally {
-      setActionLoading(null);
+  const handleApprovalSuccess = () => {
+    if (selectedUser) {
+      setUsers(users.filter((u) => u.id !== selectedUser.id));
     }
+    setApproveModalOpen(false);
+    setSelectedUser(null);
   };
 
   const handleReject = async (userId: string) => {
@@ -109,7 +117,8 @@ export default function PendingUsersPage() {
               Richieste Pendenti
             </CardTitle>
             <CardDescription>
-              {users.length} {users.length === 1 ? "utente in attesa" : "utenti in attesa"}
+              {users.length}{" "}
+              {users.length === 1 ? "utente in attesa" : "utenti in attesa"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -133,7 +142,9 @@ export default function PendingUsersPage() {
                         <div className="flex items-center gap-3 mb-2">
                           <User className="h-5 w-5 text-gray-500" />
                           <div>
-                            <p className="font-semibold text-gray-800">{user.name || "Nome non fornito"}</p>
+                            <p className="font-semibold text-gray-800">
+                              {user.name || "Nome non fornito"}
+                            </p>
                             <div className="flex items-center gap-2 text-sm text-gray-600">
                               <Mail className="h-4 w-4" />
                               {user.email}
@@ -142,7 +153,8 @@ export default function PendingUsersPage() {
                         </div>
                         <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
                           <span className="flex items-center gap-1">
-                            <span className="font-medium">Registrato il:</span> {formatDate(user.createdAt)}
+                            <span className="font-medium">Registrato il:</span>{" "}
+                            {formatDate(user.createdAt)}
                           </span>
                           {user.emailVerified && (
                             <span className="flex items-center gap-1 text-green-600">
@@ -154,7 +166,7 @@ export default function PendingUsersPage() {
                       </div>
                       <div className="flex gap-2 ml-4">
                         <Button
-                          onClick={() => handleApprove(user.id)}
+                          onClick={() => handleApprove(user)}
                           disabled={actionLoading === user.id}
                           size="sm"
                           className="bg-green-600 hover:bg-green-700"
@@ -180,6 +192,20 @@ export default function PendingUsersPage() {
           </CardContent>
         </Card>
       </div>
+
+      {selectedUser && (
+        <ApproveUserModal
+          isOpen={approveModalOpen}
+          onClose={() => {
+            setApproveModalOpen(false);
+            setSelectedUser(null);
+          }}
+          userId={selectedUser.id}
+          userName={selectedUser.name || ""}
+          userEmail={selectedUser.email}
+          onSuccess={handleApprovalSuccess}
+        />
+      )}
     </div>
   );
 }

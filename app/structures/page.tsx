@@ -12,6 +12,8 @@ import { StructuresLayoutWrapper } from "@/components/structures/structures-layo
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { getCurrentUserWithRole } from "@/lib/auth-utils";
+import { canCreateStructures } from "@/lib/permissions";
 
 interface Structure {
   id: string;
@@ -37,6 +39,12 @@ export default async function StructuresListPage() {
   if (!session?.user) {
     redirect("/auth/login");
   }
+
+  // Get user with role for permission checks
+  const userWithRole = await getCurrentUserWithRole();
+  const canCreateNewStructures = userWithRole
+    ? canCreateStructures(userWithRole)
+    : false;
 
   // Fetch organization server-side using Prisma
   const orgUser = await prisma.organizationUser.findUnique({
@@ -103,16 +111,20 @@ export default async function StructuresListPage() {
             <CardHeader>
               <CardTitle>Benvenuto, {organization.name}!</CardTitle>
               <CardDescription>
-                Non hai ancora nessuna struttura. Creane una per iniziare.
+                {canCreateNewStructures
+                  ? "Non hai ancora nessuna struttura. Creane una per iniziare."
+                  : "Non ci sono strutture disponibili. Contatta l'amministratore."}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href="/structures/new">
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Crea la tua prima struttura
-                </Button>
-              </Link>
+              {canCreateNewStructures && (
+                <Link href="/structures/new">
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Crea la tua prima struttura
+                  </Button>
+                </Link>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -132,12 +144,14 @@ export default async function StructuresListPage() {
               Seleziona la struttura su cui vuoi lavorare
             </p>
           </div>
-          <Link href="/structures/new">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Nuova Struttura
-            </Button>
-          </Link>
+          {canCreateNewStructures && (
+            <Link href="/structures/new">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Nuova Struttura
+              </Button>
+            </Link>
+          )}
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

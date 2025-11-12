@@ -1,242 +1,215 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { unlink } from "fs/promises";
-import { readFile } from "fs/promises";
+import { getCurrentUserWithRole } from "@/lib/auth-utils";
+import { hasAccessToOrganization } from "@/lib/permissions";
+import { withCSRFProtection } from "@/lib/csrf";
+import { createApiLogger } from "@/lib/logger";
+import { documentService } from "@/lib/services/document-service";
+import { handleServiceError } from "@/lib/api/handle-service-error";
 
+/**
+ * GET /api/organizations/[id]/documents/[documentId]
+ * Download di un documento
+ */
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string; documentId: string }> },
 ) {
+  const { id: organizationId, documentId } = await params;
+  const session = await auth();
+
+  const logger = createApiLogger(
+    "GET",
+    `/api/organizations/${organizationId}/documents/${documentId}`,
+    session?.user?.id,
+    organizationId,
+  );
+
   try {
-    const session = await auth();
+    // ========== AUTENTICAZIONE ==========
     if (!session?.user?.id) {
+      logger.warn({ msg: "Unauthorized download attempt" });
       return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
     }
 
-    const { id: organizationId, documentId } = await params;
-
-    // Verifica che l'utente abbia accesso a questa organizzazione
-    const orgUser = await prisma.organizationUser.findFirst({
-      where: {
-        organizationId: organizationId,
-        userId: session.user.id,
-      },
+    logger.info({
+      msg: "Downloading document",
+      userId: session.user.id,
+      documentId,
     });
 
-    if (!orgUser && !session.user.isSuperAdmin) {
+    // ========== AUTORIZZAZIONE ==========
+    const user = await getCurrentUserWithRole();
+    if (!user) {
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+    }
+
+    if (!hasAccessToOrganization(user, organizationId)) {
+      logger.warn({
+        msg: "Access denied to organization",
+        userId: session.user.id,
+        organizationId,
+      });
       return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
     }
 
-    // Recupera il documento
-    const document = await prisma.document.findFirst({
-      where: {
-        id: documentId,
-        organizationId: organizationId,
-      },
+    // ========== BUSINESS LOGIC (delegata al service) ==========
+    const { buffer, fileName, fileType } =
+      await documentService.downloadDocument({
+        documentId,
+        organizationId,
+      });
+
+    // ========== RESPONSE ==========
+    logger.info({
+      msg: "Document downloaded successfully",
+      documentId,
+      fileName,
     });
 
-    if (!document) {
-      return NextResponse.json(
-        { error: "Documento non trovato" },
-        { status: 404 },
-      );
-    }
-
-    // Leggi il file dal disco
-    try {
-      const fileBuffer = await readFile(document.storagePath);
-
-      return new NextResponse(fileBuffer, {
-        headers: {
-          "Content-Type": document.fileType || "application/octet-stream",
-          "Content-Disposition": `attachment; filename="${document.fileName}"`,
-        },
-      });
-    } catch (error) {
-      console.error("Errore lettura file:", error);
-      return NextResponse.json(
-        { error: "File non trovato sul disco" },
-        { status: 404 },
-      );
-    }
+    return new NextResponse(buffer as any, {
+      headers: {
+        "Content-Type": fileType || "application/octet-stream",
+        "Content-Disposition": `attachment; filename="${fileName}"`,
+      },
+    });
   } catch (error) {
-    console.error("Errore download documento:", error);
-    return NextResponse.json(
-      { error: "Errore nel download del documento" },
-      { status: 500 },
-    );
+    return handleServiceError(error, logger);
   }
 }
 
+/**
+ * PATCH /api/organizations/[id]/documents/[documentId]
+ * Aggiorna metadata di un documento
+ */
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string; documentId: string }> },
 ) {
+  const { id: organizationId, documentId } = await params;
+  const session = await auth();
+
+  const logger = createApiLogger(
+    "PATCH",
+    `/api/organizations/${organizationId}/documents/${documentId}`,
+    session?.user?.id,
+    organizationId,
+  );
+
   try {
-    const session = await auth();
+    // ========== AUTENTICAZIONE ==========
     if (!session?.user?.id) {
+      logger.warn({ msg: "Unauthorized update attempt" });
       return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
     }
 
-    const { id: organizationId, documentId } = await params;
-
-    // Verifica che l'utente abbia accesso a questa organizzazione
-    const orgUser = await prisma.organizationUser.findFirst({
-      where: {
-        organizationId: organizationId,
-        userId: session.user.id,
-      },
+    logger.info({
+      msg: "Updating document",
+      userId: session.user.id,
+      documentId,
     });
 
-    if (!orgUser && !session.user.isSuperAdmin) {
+    // ========== AUTORIZZAZIONE ==========
+    const user = await getCurrentUserWithRole();
+    if (!user) {
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+    }
+
+    if (!hasAccessToOrganization(user, organizationId)) {
+      logger.warn({
+        msg: "Access denied to organization",
+        userId: session.user.id,
+        organizationId,
+      });
       return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
     }
 
-    // Verifica che il documento esista e appartenga all'organizzazione
-    const existingDocument = await prisma.document.findFirst({
-      where: {
-        id: documentId,
-        organizationId: organizationId,
-      },
-    });
-
-    if (!existingDocument) {
-      return NextResponse.json(
-        { error: "Documento non trovato" },
-        { status: 404 },
-      );
-    }
-
+    // ========== PARSING INPUT ==========
     const body = await request.json();
-    const { expiryDate, notes } = body;
 
-    // Calcola se il documento è scaduto
-    const isExpired = expiryDate ? new Date(expiryDate) < new Date() : false;
-
-    // Aggiorna il documento
-    const updatedDocument = await prisma.document.update({
-      where: {
-        id: documentId,
-      },
-      data: {
-        expiryDate: expiryDate ? new Date(expiryDate) : null,
-        isExpired: isExpired,
-        notes: notes?.trim() || null,
-      },
-      include: {
-        documentTemplate: true,
-        uploadedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
+    // ========== BUSINESS LOGIC (delegata al service) ==========
+    const updatedDocument = await documentService.updateDocument({
+      documentId,
+      organizationId,
+      userId: session.user.id,
+      data: body,
     });
 
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        organizationId: organizationId,
-        userId: session.user.id,
-        action: "UPDATE_DOCUMENT",
-        entity: "Document",
-        entityId: documentId,
-        metadata: {
-          fileName: existingDocument.fileName,
-          changes: { expiryDate, notes },
-        },
-      },
+    // ========== RESPONSE ==========
+    logger.info({
+      msg: "Document updated successfully",
+      documentId,
     });
 
     return NextResponse.json({ document: updatedDocument });
   } catch (error) {
-    console.error("Errore aggiornamento documento:", error);
-    return NextResponse.json(
-      { error: "Errore nell'aggiornamento del documento" },
-      { status: 500 },
-    );
+    return handleServiceError(error, logger);
   }
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string; documentId: string }> },
-) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
-    }
-
+/**
+ * DELETE /api/organizations/[id]/documents/[documentId]
+ * Elimina un documento
+ */
+export const DELETE = withCSRFProtection(
+  async (
+    _request: Request,
+    { params }: { params: Promise<{ id: string; documentId: string }> },
+  ) => {
     const { id: organizationId, documentId } = await params;
+    const session = await auth();
 
-    // Verifica che l'utente abbia accesso a questa organizzazione
-    const orgUser = await prisma.organizationUser.findFirst({
-      where: {
-        organizationId: organizationId,
-        userId: session.user.id,
-      },
-    });
-
-    if (!orgUser && !session.user.isSuperAdmin) {
-      return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
-    }
-
-    // Verifica che il documento esista e appartenga all'organizzazione
-    const existingDocument = await prisma.document.findFirst({
-      where: {
-        id: documentId,
-        organizationId: organizationId,
-      },
-    });
-
-    if (!existingDocument) {
-      return NextResponse.json(
-        { error: "Documento non trovato" },
-        { status: 404 },
-      );
-    }
-
-    // Elimina il file dal disco
-    try {
-      await unlink(existingDocument.storagePath);
-    } catch (error) {
-      console.error("Errore eliminazione file dal disco:", error);
-      // Continua comunque con l'eliminazione dal database
-    }
-
-    // Elimina il documento dal database
-    await prisma.document.delete({
-      where: {
-        id: documentId,
-      },
-    });
-
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        organizationId: organizationId,
-        userId: session.user.id,
-        action: "DELETE_DOCUMENT",
-        entity: "Document",
-        entityId: documentId,
-        metadata: {
-          fileName: existingDocument.fileName,
-          ownerType: existingDocument.ownerType,
-          ownerId: existingDocument.ownerId,
-        },
-      },
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Errore eliminazione documento:", error);
-    return NextResponse.json(
-      { error: "Errore nell'eliminazione del documento" },
-      { status: 500 },
+    const logger = createApiLogger(
+      "DELETE",
+      `/api/organizations/${organizationId}/documents/${documentId}`,
+      session?.user?.id,
+      organizationId,
     );
-  }
-}
+
+    try {
+      // ========== AUTENTICAZIONE ==========
+      if (!session?.user?.id) {
+        logger.warn({ msg: "Unauthorized delete attempt" });
+        return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+      }
+
+      logger.info({
+        msg: "Deleting document",
+        userId: session.user.id,
+        documentId,
+      });
+
+      // ========== AUTORIZZAZIONE ==========
+      const user = await getCurrentUserWithRole();
+      if (!user) {
+        return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+      }
+
+      if (!hasAccessToOrganization(user, organizationId)) {
+        logger.warn({
+          msg: "Access denied to organization",
+          userId: session.user.id,
+          organizationId,
+        });
+        return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
+      }
+
+      // ========== BUSINESS LOGIC (delegata al service) ==========
+      await documentService.deleteDocument({
+        documentId,
+        organizationId,
+        userId: session.user.id,
+      });
+
+      // ========== RESPONSE ==========
+      logger.info({
+        msg: "Document deleted successfully",
+        documentId,
+      });
+
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      return handleServiceError(error, logger);
+    }
+  },
+);

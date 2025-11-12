@@ -36,7 +36,7 @@ export default async function DashboardLayout({
               href="/dashboard"
               className="flex items-center hover:opacity-80 transition-opacity"
             >
-              <Logo className="h-10 w-10 lg:h-12 lg:w-12" />
+              <Logo className="h-16 w-16" />
             </Link>
             <nav className="hidden lg:flex items-center gap-1">
               <Link

@@ -9,11 +9,13 @@ declare module "next-auth" {
     user: {
       id: string;
       isSuperAdmin: boolean;
+      needsOnboarding: boolean;
     } & DefaultSession["user"];
   }
 
   interface User {
     isSuperAdmin: boolean;
+    needsOnboarding: boolean;
   }
 }
 
@@ -90,6 +92,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name: user.name,
             image: user.image,
             isSuperAdmin: user.isSuperAdmin,
+            needsOnboarding: (user as any).needsOnboarding || false,
           };
         } catch (error) {
           // Re-throw the error with the original message
@@ -106,6 +109,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.id = user.id;
         token.isSuperAdmin = user.isSuperAdmin;
+        token.needsOnboarding = user.needsOnboarding;
       }
       return token;
     },
@@ -113,6 +117,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.isSuperAdmin = token.isSuperAdmin as boolean;
+        session.user.needsOnboarding = token.needsOnboarding as boolean;
       }
       return session;
     },

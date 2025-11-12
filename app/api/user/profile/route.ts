@@ -1,67 +1,70 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import * as bcrypt from "bcryptjs";
+import { createApiLogger } from "@/lib/logger";
+import { userService } from "@/lib/services/user-service";
+import { handleServiceError } from "@/lib/api/handle-service-error";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+  ErrorCodes,
+} from "@/lib/api/response-envelope";
 
+/**
+ * PATCH /api/user/profile
+ * Aggiorna profilo utente
+ */
 export async function PATCH(request: Request) {
+  const session = await auth();
+
+  const logger = createApiLogger(
+    "PATCH",
+    "/api/user/profile",
+    session?.user?.id,
+  );
+
   try {
-    const session = await auth();
+    // ========== AUTENTICAZIONE ==========
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+      logger.warn({ msg: "Unauthorized profile update attempt" });
+      return createErrorResponse(
+        ErrorCodes.UNAUTHORIZED,
+        "Non autorizzato",
+        401,
+      );
     }
 
-    const data = await request.json();
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+    logger.info({
+      msg: "Updating user profile",
+      userId: session.user.id,
     });
 
-    if (!user) {
-      return NextResponse.json({ error: "Utente non trovato" }, { status: 404 });
-    }
+    // ========== PARSING INPUT ==========
+    const data = await request.json();
 
-    const updateData: any = {};
-
-    if (data.name !== undefined) {
-      updateData.name = data.name;
-    }
-
-    if (data.newPassword && data.currentPassword) {
-      if (!user.password) {
-        return NextResponse.json(
-          { error: "Password non impostata per questo utente" },
-          { status: 400 }
-        );
-      }
-
-      const isValid = await bcrypt.compare(data.currentPassword, user.password);
-      if (!isValid) {
-        return NextResponse.json(
-          { error: "Password attuale non corretta" },
-          { status: 400 }
-        );
-      }
-
-      updateData.password = await bcrypt.hash(data.newPassword, 10);
-    }
-
-    const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
-      data: updateData,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        isSuperAdmin: true,
+    // ========== BUSINESS LOGIC (delegata al service) ==========
+    const updatedUser = await userService.updateUserProfile({
+      userId: session.user.id,
+      data: {
+        name: data.name,
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
       },
     });
 
-    return NextResponse.json(updatedUser);
+    // ========== RESPONSE ==========
+    logger.info({
+      msg: "User profile updated successfully",
+      userId: updatedUser.id,
+      nameUpdated: data.name !== undefined,
+      passwordUpdated: data.newPassword !== undefined,
+    });
+
+    return createSuccessResponse({
+      id: updatedUser.id,
+      email: updatedUser.email,
+      name: updatedUser.name,
+      isSuperAdmin: updatedUser.isSuperAdmin,
+    });
   } catch (error) {
-    console.error("Errore aggiornamento profilo:", error);
-    return NextResponse.json(
-      { error: "Errore nell'aggiornamento del profilo" },
-      { status: 500 }
-    );
+    return handleServiceError(error, logger);
   }
 }

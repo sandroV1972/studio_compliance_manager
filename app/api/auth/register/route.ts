@@ -23,6 +23,7 @@ export async function POST(request: Request) {
     }
 
     const { email, password, name } = validation.data;
+    const { inviteToken } = body;
 
     // Applica rate limiting
     const identifier = getIdentifier(request, email);
@@ -60,12 +61,100 @@ export async function POST(request: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Registrazione con invito
+    if (inviteToken) {
+      const invite = await prisma.inviteToken.findUnique({
+        where: { token: inviteToken },
+        include: { organization: true, structure: true },
+      });
+
+      if (!invite) {
+        return NextResponse.json(
+          { error: "Invito non trovato" },
+          { status: 404 },
+        );
+      }
+
+      if (invite.usedAt) {
+        return NextResponse.json(
+          { error: "Questo invito è già stato utilizzato" },
+          { status: 400 },
+        );
+      }
+
+      if (new Date() > invite.expiresAt) {
+        return NextResponse.json(
+          { error: "Questo invito è scaduto" },
+          { status: 400 },
+        );
+      }
+
+      if (invite.email.toLowerCase() !== email.toLowerCase()) {
+        return NextResponse.json(
+          { error: "Questo invito è destinato a un altro indirizzo email" },
+          { status: 400 },
+        );
+      }
+
+      // Crea utente e associazione in una transazione
+      const result = await prisma.$transaction(async (tx) => {
+        // Crea l'utente con status APPROVED (nessuna verifica email necessaria)
+        const user = await tx.user.create({
+          data: {
+            email,
+            password: hashedPassword,
+            name,
+            accountStatus: "APPROVED",
+            emailVerified: true,
+            needsOnboarding: false,
+          } as any,
+        });
+
+        // Crea l'associazione all'organizzazione
+        await tx.organizationUser.create({
+          data: {
+            userId: user.id,
+            organizationId: invite.organizationId,
+            role: invite.role,
+            structureId: invite.structureId,
+          },
+        });
+
+        // Marca il token come usato
+        await tx.inviteToken.update({
+          where: { id: invite.id },
+          data: {
+            usedAt: new Date(),
+            usedByUserId: user.id,
+          },
+        });
+
+        return user;
+      });
+
+      console.log("=== USER REGISTERED VIA INVITE ===");
+      console.log("User:", result.email);
+      console.log("Organization:", invite.organization.name);
+      console.log("Role:", invite.role);
+      console.log("Structure:", invite.structure?.name || "N/A");
+      console.log("===================================");
+
+      return NextResponse.json(
+        {
+          message: `Benvenuto in ${invite.organization.name}! Il tuo account è stato creato con successo.`,
+          userId: result.id,
+        },
+        { status: 201 },
+      );
+    }
+
+    // Registrazione standard (senza invito)
     const verificationToken = crypto.randomBytes(32).toString("hex");
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const user = await prisma.user.create({
       data: {
-        email, // già normalizzata da Zod
+        email,
         password: hashedPassword,
         name,
         accountStatus: "PENDING_VERIFICATION",
@@ -87,7 +176,6 @@ export async function POST(request: Request) {
     } catch (emailError) {
       console.error("❌ Errore invio email:", emailError);
       // Non blocchiamo la registrazione se l'email fallisce
-      // L'utente potrà comunque richiedere un nuovo invio
     }
 
     return NextResponse.json(

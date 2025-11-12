@@ -12,11 +12,27 @@ export const emailSchema = z
   .toLowerCase()
   .trim();
 
-// Password validation
+// Password validation con requisiti robusti
 export const passwordSchema = z
   .string()
-  .min(8, "La password deve contenere almeno 8 caratteri")
-  .max(100, "La password è troppo lunga");
+  .min(12, "La password deve contenere almeno 12 caratteri")
+  .max(100, "La password è troppo lunga")
+  .refine(
+    (password) => /[A-Z]/.test(password),
+    "La password deve contenere almeno una lettera maiuscola",
+  )
+  .refine(
+    (password) => /[a-z]/.test(password),
+    "La password deve contenere almeno una lettera minuscola",
+  )
+  .refine(
+    (password) => /\d/.test(password),
+    "La password deve contenere almeno un numero",
+  )
+  .refine(
+    (password) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+    "La password deve contenere almeno un carattere speciale (!@#$%^&* etc.)",
+  );
 
 // UUID/CUID validation (Prisma usa CUID per default)
 // CUID format: c[timestamp][counter][fingerprint][random]
