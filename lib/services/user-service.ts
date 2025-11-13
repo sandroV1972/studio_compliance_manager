@@ -28,6 +28,8 @@ import {
   canManageGlobalTemplates,
   canManageOrgTemplates,
   canCreateDeadlines,
+  canManageOrganization,
+  canManageOrgUsers,
   getUserRoleLabel,
 } from "@/lib/permissions";
 import { getCurrentUserWithRole } from "@/lib/auth-utils";
@@ -359,6 +361,8 @@ export class UserService {
       canManageGlobalTemplates: canManageGlobalTemplates(user),
       canManageOrgTemplates: canManageOrgTemplates(user),
       canCreateDeadlines: canCreateDeadlines(user),
+      canManageOrganization: canManageOrganization(user),
+      canManageOrgUsers: canManageOrgUsers(user),
       role: getUserRoleLabel(user),
       isSuperAdmin: user.isSuperAdmin,
       organizationId: user.organizationUser?.organizationId || null,

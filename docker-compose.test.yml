@@ -1,0 +1,95 @@
+# ============================================
+# DOCKER COMPOSE - TEST/STAGING
+# ============================================
+# Configurazione semplificata per ambiente di test
+# Include: App, PostgreSQL
+# ============================================
+
+version: '3.8'
+
+services:
+  # ==========================================
+  # PostgreSQL Database
+  # ==========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: studio-compliance-test-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-test_password_change_me}
+      POSTGRES_DB: studio_compliance_test
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"  # Porta diversa per non confliggere con prod
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+  # ==========================================
+  # Next.js Application
+  # ==========================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: studio-compliance-test-app
+    restart: unless-stopped
+    ports:
+      - "3001:3000"  # Porta diversa per test
+    environment:
+      # Database
+      DATABASE_URL: postgresql://test_user:${DB_PASSWORD:-test_password_change_me}@postgres:5432/studio_compliance_test?schema=public
+      
+      # NextAuth
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3001}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-test-secret-change-in-production}
+      
+      # Email (può essere mock per test)
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@test.example.com}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}  # console = log invece di inviare
+      
+      # App Config
+      NODE_ENV: ${NODE_ENV:-development}
+      APP_NAME: "Studio Compliance Manager - TEST"
+      APP_URL: ${APP_URL:-http://localhost:3001}
+      
+      # Super Admin
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-admin@test.local}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-Admin123!}
+      SUPER_ADMIN_NAME: "Test Admin"
+      
+      # Storage
+      STORAGE_TYPE: local
+      UPLOAD_DIR: /app/uploads
+      
+      # Logging
+      LOG_LEVEL: debug
+      LOG_DIR: /app/logs
+      
+    volumes:
+      - test_uploads:/app/uploads
+      - test_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - test-network
+
+volumes:
+  postgres_test_data:
+    driver: local
+  test_uploads:
+    driver: local
+  test_logs:
+    driver: local
+
+networks:
+  test-network:
+    driver: bridge

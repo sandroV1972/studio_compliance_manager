@@ -1,0 +1,201 @@
+# ============================================
+# DOCKER COMPOSE - PRODUCTION
+# ============================================
+# Configurazione per ambiente di produzione
+# Include: App, PostgreSQL, Redis, Backup automatico
+# ============================================
+
+version: '3.8'
+
+services:
+  # ==========================================
+  # PostgreSQL Database
+  # ==========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: studio-compliance-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-compliance_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-studio_compliance}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-compliance_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - compliance-network
+
+  # ==========================================
+  # Redis Cache (opzionale ma consigliato)
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: studio-compliance-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - compliance-network
+
+  # ==========================================
+  # Next.js Application
+  # ==========================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: studio-compliance-app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${DB_USER:-compliance_user}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-studio_compliance}?schema=public
+      
+      # NextAuth
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      
+      # Email (SES o SMTP)
+      EMAIL_FROM: ${EMAIL_FROM}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-ses}
+      
+      # AWS SES (se usato)
+      AWS_REGION: ${AWS_REGION:-eu-south-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      
+      # SMTP (alternativo a SES)
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      
+      # Redis
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      
+      # App Config
+      NODE_ENV: production
+      APP_NAME: "Studio Compliance Manager"
+      APP_URL: ${APP_URL}
+      
+      # Super Admin (primo accesso)
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
+      SUPER_ADMIN_NAME: ${SUPER_ADMIN_NAME:-Super Admin}
+      
+      # Storage (locale o S3)
+      STORAGE_TYPE: ${STORAGE_TYPE:-local}
+      UPLOAD_DIR: /app/uploads
+      
+      # S3 (se STORAGE_TYPE=s3)
+      S3_BUCKET: ${S3_BUCKET}
+      S3_REGION: ${S3_REGION:-eu-south-1}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_DIR: /app/logs
+      
+      # Security
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+      
+    volumes:
+      - uploads:/app/uploads
+      - logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - compliance-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ==========================================
+  # Backup automatico Database (ogni notte)
+  # ==========================================
+  backup:
+    image: postgres:16-alpine
+    container_name: studio-compliance-backup
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-compliance_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-studio_compliance}
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 2 * * *}  # 2 AM ogni notte
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+    command: sh -c "crond -f -l 2"
+    depends_on:
+      - postgres
+    networks:
+      - compliance-network
+
+  # ==========================================
+  # Nginx Reverse Proxy (opzionale)
+  # ==========================================
+  nginx:
+    image: nginx:alpine
+    container_name: studio-compliance-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - app
+    networks:
+      - compliance-network
+    profiles:
+      - with-nginx  # Avvia solo con: docker-compose --profile with-nginx up
+
+# ==========================================
+# Volumes persistenti
+# ==========================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  uploads:
+    driver: local
+  logs:
+    driver: local
+  nginx_logs:
+    driver: local
+
+# ==========================================
+# Network
+# ==========================================
+networks:
+  compliance-network:
+    driver: bridge

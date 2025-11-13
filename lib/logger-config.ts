@@ -18,21 +18,22 @@ export const loggerConfig: LoggerOptions = {
   enabled: isTest ? process.env.ENABLE_LOGS === "true" : true,
 
   // Formattazione per sviluppo (pretty print) e produzione (JSON)
-  ...(isDevelopment
-    ? {
-        transport: {
-          target: "pino-pretty",
-          options: {
-            colorize: true,
-            translateTime: "HH:MM:ss Z",
-            ignore: "pid,hostname",
-            singleLine: false,
-            levelFirst: true,
-            messageKey: "msg",
-          },
-        },
-      }
-    : {}),
+  // TEMPORANEAMENTE DISABILITATO: pino-pretty causa problemi con thread-stream
+  // ...(isDevelopment
+  //   ? {
+  //       transport: {
+  //         target: "pino-pretty",
+  //         options: {
+  //           colorize: true,
+  //           translateTime: "HH:MM:ss Z",
+  //           ignore: "pid,hostname",
+  //           singleLine: false,
+  //           levelFirst: true,
+  //           messageKey: "msg",
+  //         },
+  //       },
+  //     }
+  //   : {}),
 
   // Serializzatori per oggetti comuni
   serializers: {

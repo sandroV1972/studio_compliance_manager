@@ -12,6 +12,9 @@ import ProfileForm from "./ProfileForm";
 import { Building2, Mail, Phone, MapPin, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { getCurrentUserWithRole } from "@/lib/auth-utils";
+import { canManageOrganization } from "@/lib/permissions";
+import { BackButton } from "@/components/ui/back-button";
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -19,6 +22,12 @@ export default async function ProfilePage() {
   if (!session?.user?.email) {
     redirect("/auth/login");
   }
+
+  // Verifica i permessi dell'utente
+  const userWithRole = await getCurrentUserWithRole();
+  const canEditOrganization = userWithRole
+    ? canManageOrganization(userWithRole)
+    : false;
 
   // Carica le informazioni dell'organizzazione
   const orgUser = await prisma.organizationUser.findUnique({
@@ -32,6 +41,9 @@ export default async function ProfilePage() {
 
   return (
     <div className="container mx-auto p-6 max-w-4xl space-y-6">
+      <div className="flex items-center gap-4">
+        <BackButton />
+      </div>
       <div className="grid gap-6 md:grid-cols-2">
         {/* Card Profilo Utente */}
         <Card>
@@ -61,7 +73,7 @@ export default async function ProfilePage() {
                 <Building2 className="h-5 w-5 text-purple-600" />
                 <CardTitle>Organizzazione</CardTitle>
               </div>
-              {orgUser?.organization && (
+              {orgUser?.organization && canEditOrganization && (
                 <Link href="/settings/organization/edit">
                   <Button variant="outline" size="sm">
                     <Edit className="h-4 w-4 mr-2" />

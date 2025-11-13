@@ -36,6 +36,7 @@ export default function EditOrganizationPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasPermission, setHasPermission] = useState(false);
   const [formData, setFormData] = useState<Partial<OrganizationData>>({
     name: "",
     vatNumber: "",
@@ -52,14 +53,40 @@ export default function EditOrganizationPage() {
   });
 
   useEffect(() => {
-    loadOrganization();
+    checkPermissions();
   }, []);
+
+  const checkPermissions = async () => {
+    try {
+      // Verifica i permessi dell'utente
+      const permResponse = await fetch("/api/user/permissions");
+      if (!permResponse.ok) {
+        router.push("/settings/profile");
+        return;
+      }
+      const permissions = await permResponse.json();
+
+      // Solo OWNER e ADMIN possono modificare l'organizzazione
+      if (!permissions.canManageOrganization) {
+        alert("Non hai i permessi per modificare l'organizzazione");
+        router.push("/settings/profile");
+        return;
+      }
+
+      setHasPermission(true);
+      await loadOrganization();
+    } catch (error) {
+      console.error("Errore:", error);
+      router.push("/settings/profile");
+    }
+  };
 
   const loadOrganization = async () => {
     try {
       const response = await fetch("/api/user/organization");
       if (!response.ok) throw new Error("Errore caricamento organizzazione");
-      const data = await response.json();
+      const result = await response.json();
+      const data = result.data || result;
       setFormData({
         name: data.name || "",
         vatNumber: data.vatNumber || "",

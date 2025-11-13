@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import {
   Card,
@@ -48,37 +48,27 @@ export default function DeadlinesPage() {
   const [total, setTotal] = useState(0);
   const [limit] = useState(20);
 
-  useEffect(() => {
-    loadOrganization();
-  }, []);
-
-  useEffect(() => {
-    if (organizationId) {
-      loadDeadlines();
-    }
-  }, [organizationId, currentPage]);
-
-  const loadOrganization = async () => {
+  const loadOrganization = useCallback(async () => {
     try {
       const response = await fetch("/api/user/organization");
       if (!response.ok) return;
-      const data = await response.json();
+      const result = await response.json();
+      const data = result.data || result; // Support both envelope and direct response
       setOrganizationId(data.id);
     } catch (error) {
       console.error("Errore:", error);
     }
-  };
+  }, []);
 
-  const loadDeadlines = async () => {
+  const loadDeadlines = useCallback(async () => {
     try {
-      const response = await fetch(
-        `/api/organizations/${organizationId}/deadlines?nextOccurrenceOnly=true&page=${currentPage}&limit=${limit}`,
-      );
+      const response = await fetch(`/api/structures/${structureId}/deadlines`);
       if (!response.ok) throw new Error("Errore nel caricamento");
       const data = await response.json();
-      setDeadlines(data.data || []);
-      setTotalPages(data.metadata?.totalPages || 1);
-      setTotal(data.metadata?.total || 0);
+      setDeadlines(data || []);
+      setTotal(data.length || 0);
+      // Calculate pagination from client-side data
+      setTotalPages(Math.ceil((data.length || 0) / limit));
     } catch (error) {
       console.error("Errore caricamento scadenze:", error);
       setDeadlines([]);
@@ -87,7 +77,17 @@ export default function DeadlinesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [structureId, limit]);
+
+  useEffect(() => {
+    loadOrganization();
+  }, [loadOrganization]);
+
+  useEffect(() => {
+    if (organizationId) {
+      loadDeadlines();
+    }
+  }, [organizationId, loadDeadlines]);
 
   const handleModalClose = () => {
     setIsModalOpen(false);
@@ -197,79 +197,81 @@ export default function DeadlinesPage() {
           ) : (
             <>
               <div className="space-y-4">
-                {deadlines.map((deadline) => {
-                  const statusInfo = getStatusInfo(
-                    deadline.status,
-                    deadline.dueDate,
-                  );
-                  return (
-                    <div
-                      key={deadline.id}
-                      className="relative flex items-start justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors overflow-hidden"
-                    >
-                      {/* Fascia colorata a destra */}
+                {deadlines
+                  .slice((currentPage - 1) * limit, currentPage * limit)
+                  .map((deadline) => {
+                    const statusInfo = getStatusInfo(
+                      deadline.status,
+                      deadline.dueDate,
+                    );
+                    return (
                       <div
-                        className={`absolute top-0 right-0 bottom-0 w-1.5 ${statusInfo.bgColor}`}
-                      />
+                        key={deadline.id}
+                        className="relative flex items-start justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors overflow-hidden"
+                      >
+                        {/* Fascia colorata a destra */}
+                        <div
+                          className={`absolute top-0 right-0 bottom-0 w-1.5 ${statusInfo.bgColor}`}
+                        />
 
-                      <div className="flex-1 pr-4">
-                        <div className="font-medium text-lg">
-                          {deadline.title}
+                        <div className="flex-1 pr-4">
+                          <div className="font-medium text-lg">
+                            {deadline.title}
+                          </div>
+                          {deadline.template && (
+                            <div className="text-sm text-muted-foreground">
+                              {deadline.template.title} -{" "}
+                              {deadline.template.complianceType}
+                            </div>
+                          )}
+                          {deadline.person && (
+                            <div className="text-sm text-muted-foreground">
+                              Persona: {deadline.person.firstName}{" "}
+                              {deadline.person.lastName}
+                            </div>
+                          )}
+                          {deadline.structure && (
+                            <div className="text-sm text-muted-foreground">
+                              Struttura: {deadline.structure.name}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 mt-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">
+                              {formatDate(deadline.dueDate)}
+                            </span>
+                          </div>
+                          {/* Bottone documenti in basso */}
+                          {deadline.template?.requiredDocumentName && (
+                            <div className="mt-3">
+                              <DeadlineDocumentsBadge
+                                organizationId={organizationId}
+                                deadlineId={deadline.id}
+                                requiredDocumentName={
+                                  deadline.template.requiredDocumentName
+                                }
+                                structureId={structureId}
+                                structureName={deadline.structure?.name || ""}
+                              />
+                            </div>
+                          )}
                         </div>
-                        {deadline.template && (
-                          <div className="text-sm text-muted-foreground">
-                            {deadline.template.title} -{" "}
-                            {deadline.template.complianceType}
-                          </div>
-                        )}
-                        {deadline.person && (
-                          <div className="text-sm text-muted-foreground">
-                            Persona: {deadline.person.firstName}{" "}
-                            {deadline.person.lastName}
-                          </div>
-                        )}
-                        {deadline.structure && (
-                          <div className="text-sm text-muted-foreground">
-                            Struttura: {deadline.structure.name}
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 mt-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">
-                            {formatDate(deadline.dueDate)}
-                          </span>
-                        </div>
-                        {/* Bottone documenti in basso */}
-                        {deadline.template?.requiredDocumentName && (
-                          <div className="mt-3">
-                            <DeadlineDocumentsBadge
-                              organizationId={organizationId}
-                              deadlineId={deadline.id}
-                              requiredDocumentName={
-                                deadline.template.requiredDocumentName
-                              }
-                              structureId={structureId}
-                              structureName={deadline.structure?.name || ""}
-                            />
-                          </div>
-                        )}
-                      </div>
 
-                      {/* Solo bottone Modifica a destra */}
-                      <div className="flex items-start">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditClick(deadline.id)}
-                          className="flex items-center gap-2"
-                        >
-                          <Edit className="h-4 w-4" />
-                          Modifica
-                        </Button>
+                        {/* Solo bottone Modifica a destra */}
+                        <div className="flex items-start">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditClick(deadline.id)}
+                            className="flex items-center gap-2"
+                          >
+                            <Edit className="h-4 w-4" />
+                            Modifica
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
 
               {/* Pagination Controls */}

@@ -40,9 +40,9 @@ interface DeadlineTemplate {
   description: string | null;
   scope: string;
   ownerType: string;
-  recurrenceUnit: string;
-  recurrenceEvery: number;
-  firstDueOffsetDays: number;
+  recurrenceUnit: string | null;
+  recurrenceEvery: number | null;
+  firstDueOffsetDays: number | null;
   requiredDocumentName: string | null;
   region: string | null;
 }
@@ -75,7 +75,8 @@ export default function DeadlineTemplatesPage() {
     try {
       const response = await fetch("/api/user/organization");
       if (!response.ok) return;
-      const data = await response.json();
+      const result = await response.json();
+      const data = result.data || result; // Support both envelope and direct response
       setOrganizationId(data.id);
     } catch (error) {
       console.error("Errore:", error);
@@ -152,7 +153,11 @@ export default function DeadlineTemplatesPage() {
     );
   };
 
-  const getRecurrenceText = (unit: string, every: number) => {
+  const getRecurrenceText = (unit: string | null, every: number | null) => {
+    if (!unit || !every) {
+      return "Non ricorrente";
+    }
+
     const units: Record<string, string> = {
       DAY: every === 1 ? "giorno" : "giorni",
       MONTH: every === 1 ? "mese" : "mesi",

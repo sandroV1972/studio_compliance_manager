@@ -18,6 +18,9 @@ import {
   Download,
   TrendingUp,
   Upload,
+  BarChart3,
+  Clock,
+  CheckCircle2,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -64,7 +67,8 @@ export default function ReportsPage() {
     try {
       const response = await fetch("/api/user/organization");
       if (!response.ok) return;
-      const data = await response.json();
+      const result = await response.json();
+      const data = result.data || result; // Support both envelope and direct response
       setOrganizationId(data.id);
     } catch (error) {
       console.error("Errore:", error);
@@ -522,31 +526,250 @@ export default function ReportsPage() {
         </TabsContent>
 
         {/* TAB 2: Esportazioni */}
-        <TabsContent value="export">
+        <TabsContent value="export" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Report per Esportazione</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Download className="h-5 w-5" />
+                Riepilogo Stampabile
+              </CardTitle>
               <CardDescription>
-                Genera report da condividere o archiviare
+                Stampa o salva come PDF il riepilogo delle scadenze
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Funzionalità in arrivo...</p>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="p-4 border rounded-lg">
+                  <h3 className="font-medium mb-2">Report Scadenze</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Lista completa delle scadenze con stato e documenti
+                  </p>
+                  <Button className="w-full" variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
+                    Stampa Report
+                  </Button>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <h3 className="font-medium mb-2">Documenti Mancanti</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Checklist dei documenti da caricare
+                  </p>
+                  <Button className="w-full" variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
+                    Stampa Checklist
+                  </Button>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-medium text-blue-900 mb-2">
+                  Come Stampare
+                </h3>
+                <p className="text-sm text-blue-800">
+                  Clicca su uno dei pulsanti sopra, poi usa Ctrl+P (Cmd+P su
+                  Mac) per stampare o salvare come PDF usando le funzioni del
+                  browser.
+                </p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* TAB 3: Pianificazione */}
-        <TabsContent value="planning">
+        <TabsContent value="planning" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  In Scadenza (7gg)
+                </CardDescription>
+                <CardTitle className="text-3xl">
+                  {criticalDeadlines.filter((d) => d.daysRemaining <= 7).length}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Prossimi 7 giorni
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Questo Mese
+                </CardDescription>
+                <CardTitle className="text-3xl">
+                  {
+                    criticalDeadlines.filter((d) => d.daysRemaining <= 30)
+                      .length
+                  }
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Prossimi 30 giorni
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Prossimi 2 Mesi
+                </CardDescription>
+                <CardTitle className="text-3xl">
+                  {
+                    criticalDeadlines.filter((d) => d.daysRemaining <= 60)
+                      .length
+                  }
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Prossimi 60 giorni
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Trimestre
+                </CardDescription>
+                <CardTitle className="text-3xl">
+                  {criticalDeadlines.length}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Prossimi 90 giorni
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
           <Card>
             <CardHeader>
-              <CardTitle>Pianificazione Carico di Lavoro</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                Distribuzione per Tipo
+              </CardTitle>
               <CardDescription>
-                Visualizza il carico di lavoro nei prossimi mesi
+                Riepilogo scadenze per categoria di adempimento
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Funzionalità in arrivo...</p>
+              <div className="space-y-3">
+                {Array.from(
+                  new Set(
+                    criticalDeadlines
+                      .map((d) => d.template?.complianceType)
+                      .filter(Boolean),
+                  ),
+                ).map((type) => {
+                  const count = criticalDeadlines.filter(
+                    (d) => d.template?.complianceType === type,
+                  ).length;
+                  const percentage = Math.round(
+                    (count / criticalDeadlines.length) * 100,
+                  );
+
+                  return (
+                    <div key={type} className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-medium">{type}</span>
+                          <span className="text-sm text-muted-foreground">
+                            {count} scadenze ({percentage}%)
+                          </span>
+                        </div>
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-purple-600"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {criticalDeadlines.length === 0 && (
+                  <p className="text-center text-muted-foreground py-4">
+                    Nessuna scadenza nel periodo selezionato
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Carico di Lavoro Settimanale</CardTitle>
+              <CardDescription>
+                Distribuzione delle scadenze nelle prossime settimane
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {[
+                  { label: "Questa settimana", days: 7 },
+                  { label: "Prossima settimana", days: 14 },
+                  { label: "Settimana 3", days: 21 },
+                  { label: "Settimana 4", days: 28 },
+                ].map((week, index) => {
+                  const weekStart = index * 7;
+                  const weekEnd = week.days;
+                  const weekDeadlines = criticalDeadlines.filter(
+                    (d) =>
+                      d.daysRemaining > weekStart && d.daysRemaining <= weekEnd,
+                  );
+                  const maxWidth = Math.max(
+                    ...Array(4)
+                      .fill(0)
+                      .map((_, i) => {
+                        const ws = i * 7;
+                        const we = (i + 1) * 7;
+                        return criticalDeadlines.filter(
+                          (d) => d.daysRemaining > ws && d.daysRemaining <= we,
+                        ).length;
+                      }),
+                    1,
+                  );
+                  const percentage = Math.round(
+                    (weekDeadlines.length / maxWidth) * 100,
+                  );
+
+                  return (
+                    <div key={week.label}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium">
+                          {week.label}
+                        </span>
+                        <Badge variant="outline">
+                          {weekDeadlines.length} scadenze
+                        </Badge>
+                      </div>
+                      <div className="h-8 bg-gray-200 rounded-lg overflow-hidden">
+                        <div
+                          className="h-full bg-blue-600 flex items-center justify-end px-3"
+                          style={{ width: `${percentage}%` }}
+                        >
+                          {weekDeadlines.length > 0 && (
+                            <span className="text-xs text-white font-medium">
+                              {weekDeadlines.length}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

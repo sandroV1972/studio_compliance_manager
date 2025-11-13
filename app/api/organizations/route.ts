@@ -106,6 +106,14 @@ export async function PATCH(request: Request) {
       );
     }
 
+    // Solo OWNER e ADMIN possono modificare i dati dell'organizzazione
+    if (orgUser.role !== "OWNER" && orgUser.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Non hai i permessi per modificare l'organizzazione" },
+        { status: 403 },
+      );
+    }
+
     // Aggiorna l'organizzazione
     const organization = await prisma.organization.update({
       where: {

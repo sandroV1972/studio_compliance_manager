@@ -213,6 +213,18 @@ export function canDeleteDocuments(
 }
 
 /**
+ * PERMESSI ORGANIZZAZIONE
+ */
+
+/**
+ * Può modificare i dati dell'organizzazione
+ */
+export function canManageOrganization(user: UserWithOrgRole): boolean {
+  if (isSuperAdmin(user)) return true;
+  return isOrgAdmin(user);
+}
+
+/**
  * PERMESSI UTENTI
  */
 

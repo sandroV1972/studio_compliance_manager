@@ -53,10 +53,11 @@ export function StructureNav({ structureId }: StructureNavProps) {
     try {
       const response = await fetch("/api/user/organization");
       if (!response.ok) return;
-      const data = await response.json();
+      const result = await response.json();
+      const data = result.data || result; // Support both envelope and direct response
       setOrganization(data);
 
-      const structure = data.structures.find(
+      const structure = data.structures?.find(
         (s: Structure) => s.id === structureId,
       );
       setCurrentStructure(structure || null);

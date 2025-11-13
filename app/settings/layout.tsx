@@ -7,9 +7,16 @@ import {
   LayoutDashboard,
   Building2,
   FileText,
+  Users,
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { MobileMenu } from "@/components/ui/mobile-menu";
+import { getCurrentUserWithRole } from "@/lib/auth-utils";
+import {
+  canManageOrgUsers,
+  canViewTemplates,
+  isOrgAdmin,
+} from "@/lib/permissions";
 
 export default async function SettingsLayout({
   children,
@@ -22,12 +29,22 @@ export default async function SettingsLayout({
     redirect("/auth/login");
   }
 
+  // Ottieni i permessi dell'utente
+  const userWithRole = await getCurrentUserWithRole();
+  const canManageUsers = userWithRole ? canManageOrgUsers(userWithRole) : false;
+  const canSeeTemplates = userWithRole ? canViewTemplates(userWithRole) : false;
+  const isAdmin = userWithRole ? isOrgAdmin(userWithRole) : false;
+
   // Determina il link della dashboard in base al ruolo
   const dashboardLink = session.user.isSuperAdmin ? "/admin" : "/dashboard";
 
+  // Costruisci menu items in base ai permessi
   const menuItems = [
     { href: "/settings/profile", label: "Profilo" },
-    { href: "/settings/deadline-templates", label: "Adempimenti" },
+    ...(canManageUsers ? [{ href: "/settings/users", label: "Utenti" }] : []),
+    ...(canSeeTemplates
+      ? [{ href: "/settings/deadline-templates", label: "Adempimenti" }]
+      : []),
   ];
 
   return (
@@ -52,20 +69,33 @@ export default async function SettingsLayout({
                 <LayoutDashboard className="h-4 w-4" />
                 Dashboard
               </Link>
-              <Link
-                href="/structures"
-                className="text-sm text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-all flex items-center gap-1"
-              >
-                <Building2 className="h-4 w-4" />
-                Strutture
-              </Link>
-              <Link
-                href="/settings/deadline-templates"
-                className="text-sm text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-all flex items-center gap-1"
-              >
-                <FileText className="h-4 w-4" />
-                Adempimenti
-              </Link>
+              {isAdmin && (
+                <Link
+                  href="/structures"
+                  className="text-sm text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-all flex items-center gap-1"
+                >
+                  <Building2 className="h-4 w-4" />
+                  Strutture
+                </Link>
+              )}
+              {canManageUsers && (
+                <Link
+                  href="/settings/users"
+                  className="text-sm text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-all flex items-center gap-1"
+                >
+                  <Users className="h-4 w-4" />
+                  Utenti
+                </Link>
+              )}
+              {canSeeTemplates && (
+                <Link
+                  href="/settings/deadline-templates"
+                  className="text-sm text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-all flex items-center gap-1"
+                >
+                  <FileText className="h-4 w-4" />
+                  Adempimenti
+                </Link>
+              )}
             </nav>
           </div>
 

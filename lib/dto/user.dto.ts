@@ -103,6 +103,8 @@ export interface UserPermissions {
   canManageGlobalTemplates: boolean;
   canManageOrgTemplates: boolean;
   canCreateDeadlines: boolean;
+  canManageOrganization: boolean;
+  canManageOrgUsers: boolean;
   role: string;
   isSuperAdmin: boolean;
   organizationId: string | null;
