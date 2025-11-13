@@ -2,6 +2,45 @@
 
 Documentazione completa di tutte le dipendenze necessarie per il funzionamento del sistema.
 
+## 🎯 Dipendenze Critiche (MUST HAVE)
+
+Queste dipendenze sono **essenziali** per il funzionamento del sistema:
+
+### Runtime Production (incluse nel Docker)
+
+- ⭐⭐⭐⭐⭐ **Next.js** ^16.0.1 - Framework applicazione
+- ⭐⭐⭐⭐⭐ **@prisma/client** ^6.1.0 - Database ORM
+- ⭐⭐⭐⭐⭐ **Pino** ^10.1.0 - Structured logging (debugging/monitoring)
+- ⭐⭐⭐⭐⭐ **NextAuth.js** ^5.0.0 - Autenticazione e sessioni
+- ⭐⭐⭐⭐⭐ **Nodemailer** ^6.9.16 - Invio email (verifiche, reminder)
+- ⭐⭐⭐⭐⭐ **Zod** ^3.25.76 - Validazione input (sicurezza)
+- ⭐⭐⭐⭐ **bcryptjs** ^2.4.3 - Hash password
+- ⭐⭐⭐⭐ **node-cron** ^3.0.3 - Scheduled jobs (reminder, cleanup)
+- ⭐⭐⭐⭐ **date-fns** ^4.1.0 - Gestione date/timezone
+
+### Development (CRITICHE per qualità codice)
+
+- ⭐⭐⭐⭐⭐ **Husky** ^9.1.7 - Git hooks (previene commit problematici)
+- ⭐⭐⭐⭐⭐ **lint-staged** ^16.2.6 - Pre-commit automation
+- ⭐⭐⭐⭐⭐ **Prisma CLI** ^6.1.0 - Database migrations
+- ⭐⭐⭐⭐⭐ **TypeScript** ^5.7.2 - Type safety
+- ⭐⭐⭐⭐ **Commitlint** ^20.1.0 - Conventional commits
+- ⭐⭐⭐⭐ **ESLint** ^9.17.0 - Code quality
+- ⭐⭐⭐⭐ **Prettier** ^3.4.2 - Code formatting
+
+### Servizi Docker (OBBLIGATORI)
+
+- ⭐⭐⭐⭐⭐ **PostgreSQL 16** - Database principale
+- ⭐⭐⭐⭐ **Redis 7** - Cache e sessioni
+- ⭐⭐⭐ **Nginx** - Reverse proxy (opzionale ma raccomandato)
+
+### Servizi Esterni (RICHIESTI)
+
+- ⭐⭐⭐⭐⭐ **Email Provider** - AWS SES, SendGrid, o Mailgun (sistema NON funziona senza)
+- ⭐⭐⭐ **Storage** - Locale (default) o AWS S3 (opzionale)
+
+---
+
 ## 📋 Indice
 
 1. [Dipendenze Docker](#dipendenze-docker)
@@ -220,9 +259,9 @@ Tutte installate automaticamente durante il build Docker.
   - Zod integration
   - Minimal re-renders
 
-### Logging
+### Logging ⭐ CRITICAL
 
-#### **Pino** `^10.1.0`
+#### **Pino** `^10.1.0` - Sistema logging strutturato
 
 ```json
 "pino": "^10.1.0",
@@ -231,13 +270,58 @@ Tutte installate automaticamente durante il build Docker.
 ```
 
 - **Dimensione:** ~100 KB
-- **Uso:** Structured logging
+- **Uso:** **Structured logging (OBBLIGATORIO)**
+- **Importanza:** ⭐⭐⭐⭐⭐ Sistema centrale per debugging e monitoring
 - **Features:**
-  - JSON logs
-  - Low overhead
-  - Child loggers
-  - HTTP middleware
-  - Pretty print dev
+  - JSON logs strutturati per aggregatori
+  - Low overhead (<10ms per log)
+  - Child loggers con contesto
+  - HTTP middleware per API logging
+  - Pretty print colorato per development
+  - Log rotation e retention
+  - Livelli: trace, debug, info, warn, error, fatal
+
+**Configurazione attuale:**
+
+- `lib/logger-config.ts` - Setup centrale con formatter
+- `lib/services/*` - Logging in tutti i services (DeadlineService, UserService, ecc.)
+- Logging automatico richieste HTTP
+- Logging errori con stack trace
+- Logging operazioni database critiche
+
+**Esempio log produzione:**
+
+```json
+{
+  "level": 30,
+  "time": 1699876543210,
+  "pid": 1234,
+  "hostname": "app-container",
+  "service": "DeadlineService",
+  "method": "createDeadline",
+  "userId": "user_123",
+  "organizationId": "org_456",
+  "duration": 45,
+  "msg": "Deadline created successfully"
+}
+```
+
+**Esempio log development:**
+
+```
+[14:23:45.123] INFO (DeadlineService): Deadline created successfully
+    service: "DeadlineService"
+    method: "createDeadline"
+    userId: "user_123"
+    duration: 45ms
+```
+
+**Perché Pino:**
+
+- 5-10x più veloce di Winston/Bunyan
+- Zero dependencies in produzione
+- Supporto natale per Docker/Kubernetes
+- Integrazione facile con Datadog, Elasticsearch, CloudWatch
 
 ### Scheduling
 
@@ -434,27 +518,225 @@ Usate solo in fase di build, NON incluse in produzione.
 - **Uso:** Migrations, schema management
 - **Features:** Generate client, migrate, studio
 
-### Linting & Formatting
+### Linting & Formatting ⭐ DEVELOPMENT CRITICAL
 
-#### **ESLint** `^9.17.0`
+#### **ESLint** `^9.17.0` - Code quality
 
 ```json
 "eslint": "^9.17.0",
 "eslint-config-next": "^16.0.1"
 ```
 
-- **Uso:** Code quality
-- **Rules:** Next.js best practices
+- **Uso:** Linting JavaScript/TypeScript
+- **Importanza:** ⭐⭐⭐⭐ Mantiene qualità codice
+- **Rules:** Next.js best practices, React hooks, accessibility
+- **Integrazione:** Pre-commit hook, VS Code, CI/CD
 
-#### **Prettier** `^3.4.2`
+**Regole attive:**
+
+- No unused variables
+- React hooks dependencies
+- Accessibility (a11y)
+- Next.js specific patterns
+- TypeScript strict
+
+#### **Prettier** `^3.4.2` - Code formatting
 
 ```json
 "prettier": "^3.4.2",
 "prettier-plugin-tailwindcss": "^0.6.9"
 ```
 
-- **Uso:** Code formatting
-- **Features:** Tailwind class sorting
+- **Uso:** Code formatting automatico
+- **Importanza:** ⭐⭐⭐⭐ Consistenza codice
+- **Features:**
+  - Tailwind class sorting automatico
+  - Formatting su save
+  - Pre-commit hook integration
+
+**Configurazione:**
+
+```json
+{
+  "semi": true,
+  "trailingComma": "all",
+  "singleQuote": false,
+  "printWidth": 80,
+  "tabWidth": 2,
+  "plugins": ["prettier-plugin-tailwindcss"]
+}
+```
+
+### Git Hooks & Quality ⭐ DEVELOPMENT CRITICAL
+
+#### **Husky** `^9.1.7` - Git hooks manager
+
+```json
+"husky": "^9.1.7"
+```
+
+- **Dimensione:** ~50 KB
+- **Uso:** **Git hooks automation (OBBLIGATORIO per team)**
+- **Importanza:** ⭐⭐⭐⭐⭐ Previene commit problematici
+- **Setup:** `npm run prepare` crea `.husky/` directory
+
+**Hook configurati:**
+
+1. **pre-commit** - Esegue prima di ogni commit
+
+   ```bash
+   # Formatta codice modificato
+   # Esegue linter
+   # Verifica TypeScript
+   ```
+
+2. **commit-msg** - Valida messaggio commit
+   ```bash
+   # Verifica conventional commits
+   # Format: type(scope): description
+   ```
+
+**Previene:**
+
+- ❌ Commit con errori TypeScript
+- ❌ Commit con codice non formattato
+- ❌ Commit con console.log dimenticati
+- ❌ Commit con messaggi non validi
+
+#### **lint-staged** `^16.2.6` - Run su file staged
+
+```json
+"lint-staged": "^16.2.6"
+```
+
+- **Dimensione:** ~40 KB
+- **Uso:** **Esegue comandi solo su file modificati**
+- **Importanza:** ⭐⭐⭐⭐⭐ Performance pre-commit
+- **Integrazione:** Husky pre-commit hook
+
+**Configurazione in package.json:**
+
+```json
+"lint-staged": {
+  "*.{ts,tsx}": [
+    "prettier --write",
+    "eslint --fix"
+  ],
+  "*.{json,md,css}": [
+    "prettier --write"
+  ],
+  "prisma/schema.prisma": [
+    "prisma format",
+    "prisma generate"
+  ]
+}
+```
+
+**Performance:**
+
+- ⚡ Solo file modificati (non tutto il progetto)
+- ⚡ Parallel execution
+- ⚡ Pre-commit in <5 secondi
+
+#### **Commitlint** `^20.1.0` - Conventional commits
+
+```json
+"@commitlint/cli": "^20.1.0",
+"@commitlint/config-conventional": "^20.0.0"
+```
+
+- **Dimensione:** ~100 KB
+- **Uso:** **Valida formato commit messages**
+- **Importanza:** ⭐⭐⭐⭐ Changelog automatico, release notes
+- **Standard:** Conventional Commits 1.0.0
+
+**Format obbligatorio:**
+
+```bash
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer]
+```
+
+**Type validi:**
+
+- `feat`: Nuova feature
+- `fix`: Bug fix
+- `docs`: Solo documentazione
+- `style`: Formatting, missing semicolons
+- `refactor`: Code refactoring
+- `perf`: Performance improvement
+- `test`: Aggiunta test
+- `chore`: Build, dependencies, config
+
+**Esempi validi:**
+
+```bash
+feat(auth): add two-factor authentication
+fix(deadline): correct timezone handling
+docs: update deployment guide
+refactor(services): extract user service layer
+```
+
+**Esempi NON validi:**
+
+```bash
+❌ updated stuff
+❌ Fixed bug
+❌ WIP
+❌ feature: add login (tipo sbagliato)
+```
+
+**Benefici:**
+
+- ✅ Changelog automatico (semantic-release)
+- ✅ Versioning semantico automatico
+- ✅ Release notes generate
+- ✅ Storico comprensibile
+
+### Utility Development Tools
+
+#### **tsx** `^4.20.6` - TypeScript executor
+
+```json
+"tsx": "^4.20.6"
+```
+
+- **Dimensione:** ~5 MB
+- **Uso:** **Esegue TypeScript direttamente senza compilazione**
+- **Importanza:** ⭐⭐⭐⭐ Script e seed database
+- **Performance:** 10x più veloce di ts-node
+
+**Usato in:**
+
+```json
+"scripts": {
+  "prisma:seed": "tsx prisma/seed.ts"
+}
+```
+
+**Vantaggi:**
+
+- ⚡ Nessuna compilazione preventiva
+- ✅ ESM e CommonJS support
+- ✅ Source maps automatiche
+- ✅ Watch mode integrato
+
+#### **PostCSS** `^8.4.49` + **Autoprefixer** `^10.4.20`
+
+```json
+"postcss": "^8.4.49",
+"autoprefixer": "^10.4.20"
+```
+
+- **Uso:** CSS processing per Tailwind
+- **Importanza:** ⭐⭐⭐⭐ Compatibilità browser
+- **Features:**
+  - Vendor prefixes automatici
+  - CSS optimization
+  - Tailwind processing
 
 ### Testing
 
@@ -685,6 +967,166 @@ Backup upload:           5-20 GB
 
 TOTALE STIMATO:          15-70 GB
 ```
+
+---
+
+## 📊 Tabella Riassuntiva Dipendenze Critiche
+
+### Runtime Production (nel container Docker)
+
+| Dipendenza        | Versione    | Dimensione | Importanza | Scopo                   |
+| ----------------- | ----------- | ---------- | ---------- | ----------------------- |
+| **Next.js**       | ^16.0.1     | ~20 MB     | ⭐⭐⭐⭐⭐ | Framework applicazione  |
+| **Prisma Client** | ^6.1.0      | ~2 MB      | ⭐⭐⭐⭐⭐ | Database ORM type-safe  |
+| **Pino**          | ^10.1.0     | ~100 KB    | ⭐⭐⭐⭐⭐ | Structured logging      |
+| **NextAuth**      | ^5.0.0-beta | ~500 KB    | ⭐⭐⭐⭐⭐ | Autenticazione completa |
+| **Nodemailer**    | ^6.9.16     | ~200 KB    | ⭐⭐⭐⭐⭐ | Invio email SMTP/SES    |
+| **Zod**           | ^3.25.76    | ~60 KB     | ⭐⭐⭐⭐⭐ | Validazione runtime     |
+| **bcryptjs**      | ^2.4.3      | ~50 KB     | ⭐⭐⭐⭐   | Hash password sicuro    |
+| **node-cron**     | ^3.0.3      | ~20 KB     | ⭐⭐⭐⭐   | Jobs schedulati         |
+| **date-fns**      | ^4.1.0      | ~200 KB    | ⭐⭐⭐⭐   | Date/timezone           |
+| React             | ^19.0.0     | ~300 KB    | ⭐⭐⭐⭐⭐ | UI library              |
+| Tailwind CSS      | ^3.4.17     | ~3 MB dev  | ⭐⭐⭐⭐   | Styling (purged)        |
+
+### Development Tools (NON in produzione)
+
+| Dipendenza      | Versione | Importanza | Scopo                     | Quando si usa          |
+| --------------- | -------- | ---------- | ------------------------- | ---------------------- |
+| **Husky**       | ^9.1.7   | ⭐⭐⭐⭐⭐ | Git hooks automation      | Pre-commit, commit-msg |
+| **lint-staged** | ^16.2.6  | ⭐⭐⭐⭐⭐ | Pre-commit formatter      | Ogni commit            |
+| **Commitlint**  | ^20.1.0  | ⭐⭐⭐⭐   | Commit message validation | Ogni commit            |
+| **Prisma CLI**  | ^6.1.0   | ⭐⭐⭐⭐⭐ | Migrations, generate      | Deploy, development    |
+| **TypeScript**  | ^5.7.2   | ⭐⭐⭐⭐⭐ | Type checking             | Build time             |
+| **ESLint**      | ^9.17.0  | ⭐⭐⭐⭐   | Code quality              | Pre-commit, CI/CD      |
+| **Prettier**    | ^3.4.2   | ⭐⭐⭐⭐   | Code formatting           | Pre-commit, on save    |
+| **tsx**         | ^4.20.6  | ⭐⭐⭐⭐   | Run TypeScript            | Scripts, seed          |
+| Jest            | ^29.7.0  | ⭐⭐⭐     | Testing                   | CI/CD, development     |
+| Playwright      | ^1.49.1  | ⭐⭐⭐     | E2E testing               | CI/CD                  |
+
+### Docker Services (Obbligatori)
+
+| Servizio       | Immagine           | Dimensione  | Importanza | Ports              |
+| -------------- | ------------------ | ----------- | ---------- | ------------------ |
+| **PostgreSQL** | postgres:16-alpine | ~80 MB      | ⭐⭐⭐⭐⭐ | 5432 (interno)     |
+| **Redis**      | redis:7-alpine     | ~30 MB      | ⭐⭐⭐⭐   | 6379 (interno)     |
+| **Nginx**      | nginx:alpine       | ~25 MB      | ⭐⭐⭐     | 80, 443 (pubblico) |
+| **App**        | node:20-alpine     | ~40 MB base | ⭐⭐⭐⭐⭐ | 3000 (interno)     |
+
+### Servizi Esterni (Richiesti)
+
+| Servizio       | Provider      | Costo    | Importanza | Alternativa       |
+| -------------- | ------------- | -------- | ---------- | ----------------- |
+| **Email SMTP** | AWS SES       | $0.10/1k | ⭐⭐⭐⭐⭐ | SendGrid, Mailgun |
+| Storage        | Locale        | €0       | ⭐⭐⭐⭐   | AWS S3 (~€1/mese) |
+| SSL/TLS        | Let's Encrypt | €0       | ⭐⭐⭐⭐⭐ | Cloudflare        |
+| Monitoring     | Logs locali   | €0       | ⭐⭐⭐     | Sentry, Datadog   |
+
+---
+
+## 🔍 Perché Queste Dipendenze?
+
+### Husky + lint-staged + Commitlint = Quality Automation
+
+**Problema risolto:**
+
+- ❌ Commit con errori TypeScript
+- ❌ Codice non formattato
+- ❌ Commit messages non standardizzati
+- ❌ console.log dimenticati
+
+**Soluzione automatica:**
+
+```bash
+# Al commit, automaticamente:
+1. Prettier formatta i file modificati
+2. ESLint corregge problemi comuni
+3. TypeScript verifica errori
+4. Prisma rigenera client se schema modificato
+5. Commitlint valida messaggio commit
+
+# Tempo: ~3-5 secondi
+# Previene: 90% dei problemi comuni
+```
+
+**Setup in questo progetto:**
+
+```json
+// package.json
+"husky": {
+  "hooks": {
+    "pre-commit": "lint-staged",
+    "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+  }
+}
+```
+
+### Pino = Debugging e Monitoring Semplificato
+
+**Senza Pino:**
+
+```javascript
+console.log("User created:", user.id);
+// Problemi:
+// - No context (chi? quando? dove?)
+// - No aggregation possibile
+// - No log levels
+// - No structured data
+```
+
+**Con Pino:**
+
+```javascript
+logger.info(
+  {
+    service: "UserService",
+    method: "createUser",
+    userId: user.id,
+    organizationId: user.organizationId,
+    duration: 45,
+  },
+  "User created successfully",
+);
+
+// Output JSON:
+// {"level":30,"service":"UserService","userId":"123",...}
+//
+// Vantaggi:
+// ✅ Searchable in log aggregators
+// ✅ Filtrable per service/user/org
+// ✅ Metrics extraction automatica
+// ✅ Error tracking con context
+```
+
+### Node-cron = Automation Background
+
+**Jobs schedulati nel sistema:**
+
+1. **Deadline reminders** (ogni ora)
+
+   ```javascript
+   cron.schedule("0 * * * *", async () => {
+     // Trova scadenze in arrivo (7, 3, 1 giorni)
+     // Invia email reminder
+   });
+   ```
+
+2. **Recurring deadlines** (ogni giorno)
+
+   ```javascript
+   cron.schedule("0 2 * * *", async () => {
+     // Genera prossime scadenze ricorrenti
+   });
+   ```
+
+3. **Session cleanup** (ogni notte)
+   ```javascript
+   cron.schedule("0 3 * * *", async () => {
+     // Elimina sessioni scadute
+   });
+   ```
+
+**Alternativa:** Servizi esterni (AWS Lambda, cron jobs server)
+**Scelta:** node-cron integrato = più semplice, zero costi extra
 
 ---
 
