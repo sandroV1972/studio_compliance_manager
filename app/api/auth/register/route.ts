@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
     // Validazione con Zod
     const validation = validateRequest(registerSchema, body);
-    if (!validation.success) {
+    if (!validation.success || !validation.data) {
       return validation.error;
     }
 

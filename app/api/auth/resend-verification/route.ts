@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     // Validazione con Zod
     const validation = validateRequest(loginSchema, body);
-    if (!validation.success) {
+    if (!validation.success || !validation.data) {
       return validation.error;
     }
 
