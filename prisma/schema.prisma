@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -58,7 +58,8 @@ enum ComplianceType {
 
 enum DeadlineStatus {
   PENDING
-  DONE
+  IN_PROGRESS
+  COMPLETED
   OVERDUE
   CANCELLED
 }
