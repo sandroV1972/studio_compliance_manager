@@ -17,7 +17,6 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
-  ArrowLeft,
   Calendar,
   Repeat,
   Plus,
@@ -26,9 +25,7 @@ import {
   MapPin,
   Archive,
   ArchiveRestore,
-  Shield,
 } from "lucide-react";
-import Link from "next/link";
 import { EditGlobalTemplateModal } from "@/components/admin/edit-global-template-modal";
 import { CreateGlobalTemplateModal } from "@/components/admin/create-global-template-modal";
 
@@ -38,9 +35,9 @@ interface GlobalTemplate {
   complianceType: string;
   description: string | null;
   scope: string;
-  recurrenceUnit: string;
-  recurrenceEvery: number;
-  firstDueOffsetDays: number;
+  recurrenceUnit: string | null;
+  recurrenceEvery: number | null;
+  firstDueOffsetDays: number | null;
   requiredDocumentName: string | null;
   regions: string | null; // JSON string array
   legalReference: string | null;
@@ -95,30 +92,6 @@ export default function GlobalTemplatesPage() {
     }
   };
 
-  const handleDelete = async (templateId: string) => {
-    if (
-      !confirm(
-        "Sei sicuro di voler eliminare questo template? Questa azione � irreversibile.",
-      )
-    )
-      return;
-
-    try {
-      const response = await fetch(
-        `/api/admin/global-templates/${templateId}`,
-        {
-          method: "DELETE",
-        },
-      );
-
-      if (!response.ok) throw new Error("Errore nell'eliminazione");
-      await loadTemplates();
-    } catch (error) {
-      console.error("Errore:", error);
-      alert("Errore nell'eliminazione del template");
-    }
-  };
-
   const getComplianceTypeBadge = (type: string) => {
     const colors: Record<string, string> = {
       TRAINING: "bg-blue-500",
@@ -163,7 +136,11 @@ export default function GlobalTemplatesPage() {
     );
   };
 
-  const getRecurrenceText = (unit: string, every: number) => {
+  const getRecurrenceText = (unit: string | null, every: number | null) => {
+    if (!unit || !every) {
+      return "Non specificato";
+    }
+
     const units: Record<string, string> = {
       DAY: every === 1 ? "giorno" : "giorni",
       MONTH: every === 1 ? "mese" : "mesi",
@@ -466,11 +443,13 @@ export default function GlobalTemplatesPage() {
                                       template.recurrenceEvery,
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-1">
-                                    <Calendar className="h-4 w-4" />
-                                    Prima scadenza dopo{" "}
-                                    {template.firstDueOffsetDays} giorni
-                                  </div>
+                                  {template.firstDueOffsetDays !== null && (
+                                    <div className="flex items-center gap-1">
+                                      <Calendar className="h-4 w-4" />
+                                      Prima scadenza dopo{" "}
+                                      {template.firstDueOffsetDays} giorni
+                                    </div>
+                                  )}
                                   {template.requiredDocumentName && (
                                     <Badge
                                       variant="outline"
