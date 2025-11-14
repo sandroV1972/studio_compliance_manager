@@ -108,10 +108,16 @@ export default function DeadlinesPage() {
   const getStatusInfo = (status: string, dueDate: string) => {
     const isPast = new Date(dueDate) < new Date();
 
-    if (status === "DONE") {
+    if (status === "COMPLETED") {
       return {
         bgColor: "bg-green-500",
         label: "Completata",
+      };
+    }
+    if (status === "IN_PROGRESS") {
+      return {
+        bgColor: "bg-blue-500",
+        label: "In corso",
       };
     }
     if (status === "PENDING" && isPast) {

@@ -400,7 +400,8 @@ export default function EditDeadlineModal({
                 className="w-full px-3 py-2 border border-indigo-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="PENDING">In Attesa</option>
-                <option value="DONE">Completata</option>
+                <option value="IN_PROGRESS">In Corso</option>
+                <option value="COMPLETED">Completata</option>
               </select>
             </div>
 

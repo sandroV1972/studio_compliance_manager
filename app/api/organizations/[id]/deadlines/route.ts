@@ -303,7 +303,8 @@ export async function GET(
       overdue: filteredDeadlines.filter(
         (d) => d.status === "PENDING" && new Date(d.dueDate) < now,
       ).length,
-      completed: filteredDeadlines.filter((d) => d.status === "DONE").length,
+      completed: filteredDeadlines.filter((d) => d.status === "COMPLETED")
+        .length,
       upcoming: filteredDeadlines.filter(
         (d) =>
           d.status === "PENDING" &&

@@ -49,7 +49,7 @@ interface DeadlineInstance {
   id: string;
   title: string;
   dueDate: string;
-  status: "PENDING" | "DONE" | "OVERDUE" | "CANCELLED";
+  status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "OVERDUE" | "CANCELLED";
   notes: string | null;
   template?: {
     title: string;

@@ -48,7 +48,7 @@ export function getDaysUntil(date: Date | string): number {
 
 export function getDeadlineStatusColor(status: string): string {
   switch (status) {
-    case "DONE":
+    case "COMPLETED":
       return "text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950";
     case "OVERDUE":
       return "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950";

@@ -9,7 +9,7 @@ interface Deadline {
   id: string;
   title: string;
   dueDate: string;
-  status: "PENDING" | "DONE" | "OVERDUE" | "CANCELLED";
+  status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "OVERDUE" | "CANCELLED";
 }
 
 interface DeadlineCalendarProps {
@@ -104,8 +104,10 @@ export function DeadlineCalendar({ deadlines }: DeadlineCalendarProps) {
   // Get status color
   const getStatusColor = (status: string): string => {
     switch (status) {
-      case "DONE":
+      case "COMPLETED":
         return "bg-green-500";
+      case "IN_PROGRESS":
+        return "bg-yellow-500";
       case "OVERDUE":
         return "bg-red-500";
       case "PENDING":
