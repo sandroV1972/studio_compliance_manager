@@ -183,7 +183,10 @@ export class DeadlineService {
     // Gestione cambio status
     if (validatedData.status !== undefined) {
       updateData.status = validatedData.status;
-      if (validatedData.status === "DONE" && !existingDeadline.completedAt) {
+      if (
+        validatedData.status === "COMPLETED" &&
+        !existingDeadline.completedAt
+      ) {
         updateData.completedAt = new Date();
       } else if (validatedData.status === "PENDING") {
         updateData.completedAt = null;
@@ -230,7 +233,7 @@ export class DeadlineService {
 
     // Auto-rigenerazione per deadline ricorrenti completate
     if (
-      validatedData.status === "DONE" &&
+      validatedData.status === "COMPLETED" &&
       existingDeadline.isRecurring &&
       existingDeadline.recurrenceActive &&
       existingDeadline.templateId
@@ -478,8 +481,9 @@ export class DeadlineService {
   ): Promise<void> {
     if (
       !deadline.isRecurring ||
-      !deadline.recurrenceUnit ||
-      !deadline.recurrenceEvery
+      !deadline.template ||
+      !deadline.template.recurrenceUnit ||
+      !deadline.template.recurrenceEvery
     ) {
       return;
     }
@@ -487,7 +491,7 @@ export class DeadlineService {
     this.logger.debug({
       msg: "Generating recurring instances",
       deadlineId: deadline.id,
-      recurrenceUnit: deadline.recurrenceUnit,
+      recurrenceUnit: deadline.template.recurrenceUnit,
     });
 
     // Genera le prossime 3 occorrenze
@@ -497,8 +501,8 @@ export class DeadlineService {
     for (let i = 1; i <= instancesToGenerate; i++) {
       const nextDueDate = this.calculateNextDueDate(
         deadline.dueDate,
-        deadline.recurrenceUnit,
-        deadline.recurrenceEvery * i,
+        deadline.template.recurrenceUnit,
+        deadline.template.recurrenceEvery * i,
       );
 
       // Verifica se rientra nel limite (se c'è)
@@ -519,8 +523,6 @@ export class DeadlineService {
         structureId: deadline.structureId,
         notes: deadline.notes,
         isRecurring: true,
-        recurrenceUnit: deadline.recurrenceUnit,
-        recurrenceEvery: deadline.recurrenceEvery,
         recurrenceActive: true,
         recurrenceEndDate: deadline.recurrenceEndDate,
         recurrenceGroupId: deadline.recurrenceGroupId,
@@ -552,7 +554,8 @@ export class DeadlineService {
       where: { id: deadline.templateId },
     });
 
-    if (!template) return;
+    if (!template || !template.recurrenceUnit || !template.recurrenceEvery)
+      return;
 
     // Calcola la data della prossima occorrenza
     const nextDueDate = this.calculateNextDueDate(

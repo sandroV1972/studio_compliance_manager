@@ -43,7 +43,7 @@ export interface UpdateDeadlineInput {
     personId?: string | null;
     structureId?: string | null;
     notes?: string | null;
-    status?: "PENDING" | "DONE";
+    status?: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "OVERDUE";
     reminders?: Array<{
       daysBefore: number;
       message?: string | null;
@@ -67,7 +67,7 @@ export interface DeadlineWithRelations extends DeadlineInstance {
 export interface GetDeadlinesOptions {
   organizationId: string;
   structureId?: string;
-  status?: "PENDING" | "DONE";
+  status?: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "OVERDUE";
   upcoming?: boolean;
   overdue?: boolean;
   page?: number;
