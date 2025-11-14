@@ -27,9 +27,6 @@ export async function GET(request: Request) {
     // Cerca il token nel database
     const resetToken = await prisma.passwordResetToken.findUnique({
       where: { token },
-      include: {
-        // Non includiamo l'utente per non esporre dati sensibili
-      },
     });
 
     if (!resetToken) {
