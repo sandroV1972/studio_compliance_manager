@@ -123,10 +123,12 @@ export async function POST(
       const dueDate = new Date(base);
 
       // Applica l'offset iniziale
-      dueDate.setDate(dueDate.getDate() + template.firstDueOffsetDays);
+      const offsetDays = template.firstDueOffsetDays ?? 0;
+      dueDate.setDate(dueDate.getDate() + offsetDays);
 
       // Applica la ricorrenza
-      const totalUnits = template.recurrenceEvery * iteration;
+      const recurrenceEvery = template.recurrenceEvery ?? 1;
+      const totalUnits = recurrenceEvery * iteration;
 
       switch (template.recurrenceUnit) {
         case "DAY":
