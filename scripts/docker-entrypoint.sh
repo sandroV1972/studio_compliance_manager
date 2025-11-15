@@ -32,7 +32,18 @@ echo "Initializing super admin..."
 node scripts/init-superadmin.js
 echo "✓ Super admin initialized"
 
-# 4. Start application
+# 4. Load global templates (if needed)
+echo ""
+echo "Loading global templates..."
+if [ -f "prisma/dev.db" ]; then
+  echo "  SQLite database found, importing templates..."
+  node scripts/migrate-global-templates.js
+  echo "✓ Global templates imported"
+else
+  echo "  No SQLite database found, skipping template import"
+fi
+
+# 5. Start application
 echo ""
 echo "============================================"
 echo "Starting Next.js application..."

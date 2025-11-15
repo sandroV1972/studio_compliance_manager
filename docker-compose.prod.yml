@@ -5,8 +5,6 @@
 # Include: App, PostgreSQL, Redis, Backup automatico
 # ============================================
 
-version: '3.8'
-
 services:
   # ==========================================
   # PostgreSQL Database

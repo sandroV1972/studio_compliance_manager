@@ -464,7 +464,7 @@ Tutte installate automaticamente durante il build Docker.
 "ics": "^3.8.1"
 ```
 
-- **Dimensione:** ~30 KB
+- **Dimensione:** ~30 KB./scripts/test-email-config.sh alessandrovalenti.android@gmail.com
 - **Uso:** Generazione file .ics
 - **Features:**
   - Calendar events

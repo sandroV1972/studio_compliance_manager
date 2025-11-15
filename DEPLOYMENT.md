@@ -4,12 +4,13 @@
 
 1. [Prerequisiti](#prerequisiti)
 2. [Configurazione Iniziale](#configurazione-iniziale)
-3. [Ambiente TEST](#ambiente-test)
-4. [Ambiente PRE-PROD](#ambiente-pre-prod)
-5. [Ambiente PROD](#ambiente-prod)
-6. [Gestione Backup](#gestione-backup)
-7. [Monitoring e Manutenzione](#monitoring-e-manutenzione)
-8. [Troubleshooting](#troubleshooting)
+3. [Migrazione Template Globali](#migrazione-template-globali)
+4. [Ambiente TEST](#ambiente-test)
+5. [Ambiente PRE-PROD](#ambiente-pre-prod)
+6. [Ambiente PROD](#ambiente-prod)
+7. [Gestione Backup](#gestione-backup)
+8. [Monitoring e Manutenzione](#monitoring-e-manutenzione)
+9. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -121,6 +122,159 @@ openssl rand -base64 24
 
 ```bash
 chmod +x scripts/*.sh
+```
+
+---
+
+## 📦 Migrazione Template Globali
+
+### Panoramica
+
+L'applicazione include **95 template globali predefiniti**:
+
+- **11 RoleTemplate** (Medico, Igienista Dentale, RSPP, ecc.)
+- **52 DeadlineTemplate** (formazioni obbligatorie, scadenze normative)
+- **32 DocumentTemplate** (documenti obbligatori per strutture sanitarie)
+
+Questi template sono fondamentali per il corretto funzionamento dell'applicazione e vengono importati automaticamente al primo avvio se disponibili.
+
+### Metodo 1: Importazione Automatica (Consigliato)
+
+Se stai migrando da un ambiente esistente con database SQLite:
+
+```bash
+# 1. Dal tuo ambiente di sviluppo/test, copia il database SQLite sul server
+scp prisma/dev.db user@server:/opt/studio-compliance-manager/prisma/dev.db
+
+# 2. Verifica che il file sia stato copiato
+ssh user@server
+cd /opt/studio-compliance-manager
+ls -lh prisma/dev.db
+
+# 3. Avvia l'applicazione normalmente
+docker-compose -f docker-compose.prod.yml up -d
+
+# 4. Lo script di avvio (docker-entrypoint.sh) rileverà automaticamente
+#    il file dev.db e importerà i template globali
+```
+
+**Verifica nell'output dei log:**
+
+```bash
+docker-compose -f docker-compose.prod.yml logs app | grep -A5 "Loading global templates"
+
+# Dovresti vedere:
+# ✓ Database is ready
+# ✓ Migrations completed
+# ✓ Super admin initialized
+# ✓ Global templates imported
+#   - RoleTemplate: 11 migrated
+#   - DeadlineTemplate: 52 migrated
+#   - DocumentTemplate: 32 migrated
+```
+
+### Metodo 2: Importazione Manuale
+
+Se non hai il database SQLite ma hai accesso ai dati:
+
+```bash
+# 1. Entra nel container dell'applicazione
+docker exec -it studio-compliance-app sh
+
+# 2. Se hai copiato il file dev.db successivamente
+node scripts/migrate-global-templates.js
+
+# 3. Exit
+exit
+```
+
+### Metodo 3: Installazione Pulita (Senza Template)
+
+Se stai facendo un'installazione completamente nuova senza template preesistenti:
+
+1. L'applicazione partirà senza template globali
+2. Dovrai creare manualmente i template dall'interfaccia Super Admin
+3. Oppure richiedere un dump SQL dei template dal supporto
+
+### Verifica Template Importati
+
+**Da interfaccia web:**
+
+1. Login come Super Admin
+2. Vai su **Impostazioni** → **Template Globali**
+3. Verifica che ci siano:
+   - ✓ 11 RoleTemplate
+   - ✓ 52 DeadlineTemplate
+   - ✓ 32 DocumentTemplate
+
+**Da database (PostgreSQL):**
+
+```bash
+# Verifica conteggio template
+docker exec studio-compliance-db psql -U compliance_user -d studio_compliance -c "
+SELECT
+  'RoleTemplate' as table_name,
+  COUNT(*) as count
+FROM \"RoleTemplate\"
+WHERE \"ownerType\" = 'GLOBAL'
+UNION ALL
+SELECT 'DeadlineTemplate', COUNT(*)
+FROM \"DeadlineTemplate\"
+WHERE \"ownerType\" = 'GLOBAL'
+UNION ALL
+SELECT 'DocumentTemplate', COUNT(*)
+FROM \"DocumentTemplate\"
+WHERE \"ownerType\" = 'GLOBAL';
+"
+
+# Output atteso:
+#    table_name    | count
+# -----------------+-------
+#  RoleTemplate     |    11
+#  DeadlineTemplate |    52
+#  DocumentTemplate |    32
+```
+
+### Script di Migrazione
+
+Lo script `scripts/migrate-global-templates.js` gestisce l'importazione:
+
+- Legge i template dal database SQLite (`prisma/dev.db`)
+- Li importa nel database PostgreSQL
+- Mantiene gli ID originali per preservare le relazioni
+- Gestisce i duplicati (non sovrascrive template già esistenti)
+- Preserva tutte le date di creazione/aggiornamento
+
+### Troubleshooting Template
+
+**Template non importati:**
+
+```bash
+# Verifica che dev.db esista
+docker exec studio-compliance-app ls -l prisma/dev.db
+
+# Se esiste, importa manualmente
+docker exec studio-compliance-app node scripts/migrate-global-templates.js
+```
+
+**Database SQLite non accessibile:**
+
+```bash
+# Verifica che better-sqlite3 sia installato
+docker exec studio-compliance-app npm list better-sqlite3
+
+# Se non installato, installalo
+docker exec studio-compliance-app npm install better-sqlite3 --legacy-peer-deps
+```
+
+**Errore durante l'importazione:**
+
+```bash
+# Controlla i log dettagliati
+docker-compose -f docker-compose.prod.yml logs app | grep -i template
+
+# Testa la connessione al database
+docker exec studio-compliance-app npx prisma db execute --stdin <<< "SELECT 1"
 ```
 
 ---
