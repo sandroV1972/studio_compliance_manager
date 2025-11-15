@@ -254,11 +254,6 @@ function LoginForm() {
                 Registrati
               </Link>
             </p>
-            <div className="text-xs text-muted-foreground border-t pt-4">
-              <p className="font-semibold mb-1">Account Demo:</p>
-              <p>demo@studiodentistico.it / Demo123!</p>
-              <p>admin@studiocompliance.it / Admin123!</p>
-            </div>
           </div>
         </CardContent>
       </Card>
