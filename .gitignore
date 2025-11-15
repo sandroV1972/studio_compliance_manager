@@ -2,6 +2,9 @@ node_modules
 .next
 .env
 .env.local
+.env.test
+.env.preprod
+.env.production
 dist
 build
 *.log
@@ -21,3 +24,29 @@ tsconfig.tsbuildinfo
 
 # Nested project folder (remove if needed)
 studio_compliance_manager/
+
+# Development databases
+dev.db
+*.db
+*.db-journal
+
+# Database dumps and migration scripts
+*.sql
+pg_dump.sql
+sqlite_dump.sql
+convert_sqlite_to_pg.sh
+
+# Backups
+backups/
+*.sql.gz
+
+# Docker volumes data
+postgres_data/
+redis_data/
+logs/
+
+# Temporary files
+next
+tmp/
+temp/
+studio-compliance-manager@*
