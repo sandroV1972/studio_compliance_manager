@@ -32,25 +32,26 @@
 
 ### File Chiave per Deployment
 
-1. **`prisma/dev.db`** (428KB)
-   - Database SQLite con tutti i template globali
-   - Da copiare sul server per importazione automatica
+1. **`prisma/seed.ts`**
+   - Seed script per popolamento template globali
+   - Include 11 RoleTemplate + 30+ DeadlineTemplate + 32 DocumentTemplate
+   - Eseguito automaticamente al primo avvio tramite `prisma db seed`
 
-2. **`scripts/migrate-global-templates.js`**
-   - Script che migra i template da SQLite a PostgreSQL
-   - Eseguito automaticamente al primo avvio se `dev.db` è presente
-
-3. **`scripts/docker-entrypoint.sh`**
+2. **`scripts/docker-entrypoint.sh`**
    - Script di avvio Docker
-   - Gestisce migrazioni, super admin, e importazione template
+   - Gestisce migrazioni, super admin, e seeding database
 
-4. **`docker-compose.prod.yml`**
+3. **`docker-compose.prod.yml`**
    - Configurazione completa per produzione
    - Include: App, PostgreSQL, Redis, Backup automatico
 
-5. **`.env.production.example`**
+4. **`.env.production.example`**
    - Template configurazione produzione
    - Include tutte le variabili necessarie
+
+5. **`package.json`**
+   - Configurazione Prisma seed
+   - Include script `prisma:seed` per popolamento database
 
 6. **`DEPLOYMENT.md`**
    - Guida completa al deployment
@@ -63,14 +64,15 @@
 ### Quick Start
 
 ```bash
-# 1. Sul tuo computer locale, copia il database SQLite sul server
-scp prisma/dev.db user@server:/opt/studio-compliance-manager/prisma/dev.db
-
-# 2. Sul server, configura .env
+# 1. Sul server, clona il repository
 ssh user@server
-cd /opt/studio-compliance-manager
+cd /opt
+git clone https://github.com/tuouser/studio-compliance-manager.git
+cd studio-compliance-manager
+
+# 2. Configura .env
 cp .env.production.example .env
-nano .env  # Modifica con i tuoi valori
+nano .env  # Modifica con i tuoi valori REALI
 
 # 3. Avvia l'applicazione
 docker-compose -f docker-compose.prod.yml up -d
@@ -82,10 +84,10 @@ docker-compose -f docker-compose.prod.yml logs -f app
 # ✓ Database is ready
 # ✓ Migrations completed
 # ✓ Super admin initialized
-# ✓ Global templates imported
-#   - RoleTemplate: 11 migrated
-#   - DeadlineTemplate: 52 migrated
-#   - DocumentTemplate: 32 migrated
+# ✓ Database seeded
+#   - 11 Global Role Templates created
+#   - 30 Global Deadline Templates created
+#   - 32 Global Document Templates created
 ```
 
 ### Accesso Primo Login
@@ -145,12 +147,13 @@ Prima del deployment, assicurati di committare:
 # File modificati/creati per la migrazione
 git add prisma/schema.prisma                    # Schema PostgreSQL
 git add prisma/migrations/                      # Migrazioni database
-git add scripts/migrate-global-templates.js     # Script migrazione template
+git add prisma/seed.ts                          # Seed template globali
 git add scripts/docker-entrypoint.sh            # Script avvio aggiornato
 git add docker-compose.prod.yml                 # Config produzione
 git add .env.production.example                 # Template env prod
 git add DEPLOYMENT.md                           # Documentazione deployment
 git add MIGRATION-SUMMARY.md                    # Questo file
+git add package.json                            # Configurazione seed Prisma
 
 # Commit
 git commit -m "chore: complete PostgreSQL migration with global templates
