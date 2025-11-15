@@ -11,25 +11,37 @@ export async function POST(request: Request) {
 
     const data = await request.json();
 
-    const organization = await prisma.organization.create({
-      data: {
-        name: data.name,
-        address: data.address,
-        city: data.city,
-        province: data.province,
-        postalCode: data.postalCode,
-        country: data.country || "Italia",
-        phone: data.phone,
-        email: data.email,
-        vatNumber: data.vatNumber,
-        fiscalCode: data.fiscalCode,
-        users: {
-          create: {
-            userId: session.user.id,
-            role: "OWNER",
+    // Crea organizzazione e aggiorna utente in una transazione
+    const organization = await prisma.$transaction(async (tx) => {
+      // Crea l'organizzazione con l'utente come OWNER
+      const org = await tx.organization.create({
+        data: {
+          name: data.name,
+          address: data.address,
+          city: data.city,
+          province: data.province,
+          postalCode: data.postalCode,
+          country: data.country || "Italia",
+          phone: data.phone,
+          email: data.email,
+          vatNumber: data.vatNumber,
+          fiscalCode: data.fiscalCode,
+          users: {
+            create: {
+              userId: session.user.id,
+              role: "OWNER",
+            },
           },
         },
-      },
+      });
+
+      // Aggiorna l'utente per completare l'onboarding
+      await tx.user.update({
+        where: { id: session.user.id },
+        data: { needsOnboarding: false },
+      });
+
+      return org;
     });
 
     return NextResponse.json(organization);

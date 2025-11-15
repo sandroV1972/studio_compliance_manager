@@ -41,7 +41,7 @@ export default function PendingUsersPage() {
       const response = await fetch("/api/admin/users/pending");
       if (response.ok) {
         const data = await response.json();
-        setUsers(data);
+        setUsers(data.data || data); // Handle both envelope and direct array responses
       }
     } catch (error) {
       console.error("Error fetching pending users:", error);

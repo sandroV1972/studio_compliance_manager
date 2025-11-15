@@ -1,3 +1,7 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -8,12 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Building2, Users, Calendar, Plus, MapPin } from "lucide-react";
 import Link from "next/link";
-import { StructuresLayoutWrapper } from "@/components/structures/structures-layout-wrapper";
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
-import { getCurrentUserWithRole } from "@/lib/auth-utils";
-import { canCreateStructures } from "@/lib/permissions";
+import { StructuresLayoutWrapperClient } from "@/components/structures/structures-layout-wrapper-client";
+import { CreateStructureModal } from "@/components/structures/create-structure-modal";
 
 interface Structure {
   id: string;
@@ -33,53 +33,74 @@ interface Organization {
   structures: Structure[];
 }
 
-export default async function StructuresListPage() {
-  const session = await auth();
+export default function StructuresListPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [organization, setOrganization] = useState<Organization | null>(null);
+  const [canCreate, setCanCreate] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
-  if (!session?.user) {
-    redirect("/auth/login");
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      // Load user info
+      const userResponse = await fetch("/api/user/me");
+      if (userResponse.ok) {
+        const userResult = await userResponse.json();
+        const userData = userResult.data || userResult;
+        setUserName(userData.name || null);
+        setUserEmail(userData.email || null);
+      }
+
+      // Load user permissions
+      const permissionsResponse = await fetch("/api/user/permissions");
+      if (permissionsResponse.ok) {
+        const permissionsResult = await permissionsResponse.json();
+        const permissions = permissionsResult.data || permissionsResult;
+        setCanCreate(permissions.canManageOrganization || false);
+      }
+
+      // Load organization
+      const orgResponse = await fetch("/api/user/organization");
+      if (!orgResponse.ok) {
+        setOrganization(null);
+        return;
+      }
+
+      const orgResult = await orgResponse.json();
+      const orgData = orgResult.data || orgResult;
+      setOrganization(orgData);
+    } catch (error) {
+      console.error("Errore caricamento dati:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStructureCreated = (structureId: string) => {
+    // Refresh data and redirect to new structure
+    loadData();
+    router.push(`/structures/${structureId}`);
+  };
+
+  if (loading) {
+    return (
+      <StructuresLayoutWrapperClient userName={userName} userEmail={userEmail}>
+        <div className="container mx-auto p-6">
+          <div className="text-center py-12">Caricamento...</div>
+        </div>
+      </StructuresLayoutWrapperClient>
+    );
   }
-
-  // Get user with role for permission checks
-  const userWithRole = await getCurrentUserWithRole();
-  const canCreateNewStructures = userWithRole
-    ? canCreateStructures(userWithRole)
-    : false;
-
-  // Fetch organization server-side using Prisma
-  const orgUser = await prisma.organizationUser.findUnique({
-    where: {
-      userId: session.user.id,
-    },
-    include: {
-      organization: {
-        include: {
-          structures: {
-            where: {
-              active: true,
-            },
-            include: {
-              _count: {
-                select: {
-                  personStructures: true,
-                  deadlineInstances: true,
-                },
-              },
-            },
-            orderBy: {
-              createdAt: "asc",
-            },
-          },
-        },
-      },
-    },
-  });
-
-  const organization = orgUser?.organization || null;
 
   if (!organization) {
     return (
-      <StructuresLayoutWrapper>
+      <StructuresLayoutWrapperClient userName={userName} userEmail={userEmail}>
         <div className="container mx-auto p-6">
           <Card className="max-w-2xl mx-auto">
             <CardHeader>
@@ -99,41 +120,45 @@ export default async function StructuresListPage() {
             </CardContent>
           </Card>
         </div>
-      </StructuresLayoutWrapper>
+      </StructuresLayoutWrapperClient>
     );
   }
 
   if (organization.structures.length === 0) {
     return (
-      <StructuresLayoutWrapper>
+      <StructuresLayoutWrapperClient userName={userName} userEmail={userEmail}>
         <div className="container mx-auto p-6">
           <Card className="max-w-2xl mx-auto">
             <CardHeader>
               <CardTitle>Benvenuto, {organization.name}!</CardTitle>
               <CardDescription>
-                {canCreateNewStructures
+                {canCreate
                   ? "Non hai ancora nessuna struttura. Creane una per iniziare."
                   : "Non ci sono strutture disponibili. Contatta l'amministratore."}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {canCreateNewStructures && (
-                <Link href="/structures/new">
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Crea la tua prima struttura
-                  </Button>
-                </Link>
+              {canCreate && (
+                <Button onClick={() => setIsCreateModalOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Crea la tua prima struttura
+                </Button>
               )}
             </CardContent>
           </Card>
         </div>
-      </StructuresLayoutWrapper>
+
+        <CreateStructureModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onSuccess={handleStructureCreated}
+        />
+      </StructuresLayoutWrapperClient>
     );
   }
 
   return (
-    <StructuresLayoutWrapper>
+    <StructuresLayoutWrapperClient userName={userName} userEmail={userEmail}>
       <div className="container mx-auto p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -144,13 +169,11 @@ export default async function StructuresListPage() {
               Seleziona la struttura su cui vuoi lavorare
             </p>
           </div>
-          {canCreateNewStructures && (
-            <Link href="/structures/new">
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Nuova Struttura
-              </Button>
-            </Link>
+          {canCreate && (
+            <Button onClick={() => setIsCreateModalOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nuova Struttura
+            </Button>
           )}
         </div>
 
@@ -221,6 +244,12 @@ export default async function StructuresListPage() {
           ))}
         </div>
       </div>
-    </StructuresLayoutWrapper>
+
+      <CreateStructureModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={handleStructureCreated}
+      />
+    </StructuresLayoutWrapperClient>
   );
 }
