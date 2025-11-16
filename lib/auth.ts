@@ -26,19 +26,24 @@ const loginSchema = z.object({
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
   pages: {
     signIn: "/auth/login",
     error: "/auth/error",
   },
+  useSecureCookies: true,
   cookies: {
     sessionToken: {
-      name: `__Secure-next-auth.session-token`,
+      name: `next-auth.session-token`,
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
         secure: true,
+        domain: ".3jdigital.solutions",
       },
     },
   },
