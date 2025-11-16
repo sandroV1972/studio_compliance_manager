@@ -20,6 +20,7 @@ async function main() {
       name: "Super Admin",
       isSuperAdmin: true,
       emailVerified: new Date(),
+      accountStatus: "APPROVED",
     },
   });
 
@@ -597,6 +598,7 @@ async function main() {
       password: demoUserPassword,
       name: "Dr. Mario Rossi",
       emailVerified: new Date(),
+      accountStatus: "APPROVED",
     },
   });
 
