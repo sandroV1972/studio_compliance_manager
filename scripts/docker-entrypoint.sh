@@ -27,10 +27,11 @@ npx prisma migrate deploy
 echo "✓ Migrations completed"
 
 # 3. Initialize super admin
-echo ""
-echo "Initializing super admin..."
-node scripts/init-superadmin.js
-echo "✓ Super admin initialized"
+# DISABLED: Super admin is initialized manually via simple-reset.js
+# echo ""
+# echo "Initializing super admin..."
+# node scripts/init-superadmin.js
+# echo "✓ Super admin initialized"
 
 # 4. Seed database with global templates
 # DISABLED: Seed is run manually via simple-reset.js
