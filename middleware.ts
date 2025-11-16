@@ -1,10 +1,25 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
+import { logger } from "@/lib/logger";
 
 export async function middleware(request: NextRequest) {
   const session = await auth();
   const { pathname } = request.nextUrl;
+
+  // Debug logging
+  logger.info({
+    msg: "Middleware executing",
+    pathname,
+    hasSession: !!session,
+    sessionUser: session?.user?.email,
+    headers: {
+      host: request.headers.get("host"),
+      "x-forwarded-host": request.headers.get("x-forwarded-host"),
+      "x-forwarded-proto": request.headers.get("x-forwarded-proto"),
+    },
+    cookies: request.cookies.getAll().map((c) => c.name),
+  });
 
   // Percorsi pubblici - nessun redirect
   if (pathname.startsWith("/auth")) {
