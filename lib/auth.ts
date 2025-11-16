@@ -34,19 +34,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: "/auth/login",
     error: "/auth/error",
   },
-  useSecureCookies: true,
-  cookies: {
-    sessionToken: {
-      name: `next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: true,
-        domain: ".3jdigital.solutions",
-      },
-    },
-  },
   providers: [
     Credentials({
       credentials: {
