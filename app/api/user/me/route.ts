@@ -40,7 +40,7 @@ export async function GET() {
   } catch (error) {
     logger.error({ msg: "Error fetching user info", error });
     return createErrorResponse(
-      ErrorCodes.INTERNAL_ERROR,
+      ErrorCodes.INTERNAL_SERVER_ERROR,
       "Errore nel recupero delle informazioni utente",
       500,
     );
