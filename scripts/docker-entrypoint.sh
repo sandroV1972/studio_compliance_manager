@@ -33,10 +33,11 @@ node scripts/init-superadmin.js
 echo "✓ Super admin initialized"
 
 # 4. Seed database with global templates
-echo ""
-echo "Seeding database with global templates..."
-npx prisma db seed
-echo "✓ Database seeded"
+# DISABLED: Seed is run manually via simple-reset.js
+# echo ""
+# echo "Seeding database with global templates..."
+# npx prisma db seed
+# echo "✓ Database seeded"
 
 # 5. Start application
 echo ""
