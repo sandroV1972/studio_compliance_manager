@@ -1,13 +1,37 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
 import Link from "next/link";
-import { Users, Building2, UserCircle, MapPin, Calendar, Search, FileText, Shield, Settings } from "lucide-react";
+import {
+  Users,
+  Building2,
+  UserCircle,
+  MapPin,
+  Calendar,
+  Search,
+  FileText,
+  Shield,
+  Settings,
+} from "lucide-react";
 
 async function getAdminDashboardData() {
-  const [totalUsers, totalOrganizations, totalPeople, totalStructures, totalDeadlines, totalTemplates, recentAuditLogs] = await Promise.all([
+  const [
+    totalUsers,
+    totalOrganizations,
+    totalPeople,
+    totalStructures,
+    totalDeadlines,
+    totalTemplates,
+    recentAuditLogs,
+  ] = await Promise.all([
     prisma.user.count(),
     prisma.organization.count(),
     prisma.person.count(),
@@ -83,7 +107,9 @@ export default async function AdminDashboardPage() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard Amministratore</h2>
+        <h2 className="text-3xl font-bold tracking-tight">
+          Dashboard Amministratore
+        </h2>
         <p className="text-muted-foreground">
           Panoramica completa del sistema e gestione avanzata
         </p>
@@ -93,12 +119,16 @@ export default async function AdminDashboardPage() {
         <Link href="/admin/users">
           <Card className="hover:bg-accent transition-colors cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Utenti Totali</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Utenti Totali
+              </CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{data.stats.totalUsers}</div>
-              <p className="text-xs text-muted-foreground mt-1">Gestisci tutti gli utenti →</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Gestisci tutti gli utenti →
+              </p>
             </CardContent>
           </Card>
         </Link>
@@ -106,12 +136,18 @@ export default async function AdminDashboardPage() {
         <Link href="/admin/organizations">
           <Card className="hover:bg-accent transition-colors cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Organizzazioni</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Organizzazioni
+              </CardTitle>
               <Building2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{data.stats.totalOrganizations}</div>
-              <p className="text-xs text-muted-foreground mt-1">Vedi tutte le organizzazioni →</p>
+              <div className="text-2xl font-bold">
+                {data.stats.totalOrganizations}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Vedi tutte le organizzazioni →
+              </p>
             </CardContent>
           </Card>
         </Link>
@@ -124,7 +160,9 @@ export default async function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{data.stats.totalPeople}</div>
-              <p className="text-xs text-muted-foreground mt-1">Gestisci tutte le persone →</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Gestisci tutte le persone →
+              </p>
             </CardContent>
           </Card>
         </Link>
@@ -135,8 +173,12 @@ export default async function AdminDashboardPage() {
             <MapPin className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.stats.totalStructures}</div>
-            <p className="text-xs text-muted-foreground mt-1">Totale strutture operative</p>
+            <div className="text-2xl font-bold">
+              {data.stats.totalStructures}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Totale strutture operative
+            </p>
           </CardContent>
         </Card>
 
@@ -146,20 +188,30 @@ export default async function AdminDashboardPage() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.stats.totalDeadlines}</div>
-            <p className="text-xs text-muted-foreground mt-1">Totale scadenze attive</p>
+            <div className="text-2xl font-bold">
+              {data.stats.totalDeadlines}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Totale scadenze attive
+            </p>
           </CardContent>
         </Card>
 
-        <Link href="/admin/global">
+        <Link href="/admin/global-templates">
           <Card className="hover:bg-accent transition-colors cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Template Globali</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Template Globali
+              </CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{data.stats.totalTemplates}</div>
-              <p className="text-xs text-muted-foreground mt-1">Gestisci template →</p>
+              <div className="text-2xl font-bold">
+                {data.stats.totalTemplates}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Gestisci template →
+              </p>
             </CardContent>
           </Card>
         </Link>
@@ -171,8 +223,12 @@ export default async function AdminDashboardPage() {
               <Shield className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{data.stats.recentAuditLogs}</div>
-              <p className="text-xs text-muted-foreground mt-1">Vedi log attività →</p>
+              <div className="text-2xl font-bold">
+                {data.stats.recentAuditLogs}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Vedi log attività →
+              </p>
             </CardContent>
           </Card>
         </Link>
@@ -180,12 +236,16 @@ export default async function AdminDashboardPage() {
         <Link href="/admin/settings">
           <Card className="hover:bg-accent transition-colors cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Impostazioni</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Impostazioni
+              </CardTitle>
               <Settings className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">Sistema</div>
-              <p className="text-xs text-muted-foreground mt-1">Configurazione →</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Configurazione →
+              </p>
             </CardContent>
           </Card>
         </Link>
@@ -200,13 +260,14 @@ export default async function AdminDashboardPage() {
                 <CardTitle>Ricerca Globale</CardTitle>
               </div>
               <CardDescription>
-                Cerca utenti, organizzazioni, personale e strutture in tutto il sistema
+                Cerca utenti, organizzazioni, personale e strutture in tutto il
+                sistema
               </CardDescription>
             </CardHeader>
           </Card>
         </Link>
 
-        <Link href="/admin/global">
+        <Link href="/admin/global-templates">
           <Card className="hover:bg-accent transition-colors cursor-pointer border-2 border-purple-200">
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -214,7 +275,8 @@ export default async function AdminDashboardPage() {
                 <CardTitle>Template Globali</CardTitle>
               </div>
               <CardDescription>
-                Gestisci template di scadenze e ruoli disponibili per tutte le organizzazioni
+                Gestisci template di scadenze e ruoli disponibili per tutte le
+                organizzazioni
               </CardDescription>
             </CardHeader>
           </Card>
@@ -228,7 +290,8 @@ export default async function AdminDashboardPage() {
                 <CardTitle>Audit Log</CardTitle>
               </div>
               <CardDescription>
-                Visualizza tutte le azioni critiche e modifiche effettuate nel sistema
+                Visualizza tutte le azioni critiche e modifiche effettuate nel
+                sistema
               </CardDescription>
             </CardHeader>
           </Card>
@@ -243,7 +306,10 @@ export default async function AdminDashboardPage() {
                 <CardTitle>Utenti Recenti</CardTitle>
                 <CardDescription>Ultimi 5 utenti registrati</CardDescription>
               </div>
-              <Link href="/admin/users" className="text-sm text-blue-600 hover:underline">
+              <Link
+                href="/admin/users"
+                className="text-sm text-blue-600 hover:underline"
+              >
                 Vedi tutti →
               </Link>
             </div>
@@ -251,7 +317,10 @@ export default async function AdminDashboardPage() {
           <CardContent>
             <div className="space-y-4">
               {data.recentUsers.map((user) => (
-                <div key={user.id} className="flex items-center justify-between border-b pb-4 last:border-0">
+                <div
+                  key={user.id}
+                  className="flex items-center justify-between border-b pb-4 last:border-0"
+                >
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="font-medium">{user.name || user.email}</p>
@@ -261,9 +330,12 @@ export default async function AdminDashboardPage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {user.email}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      {user.organizationUsers.length} organizzazioni • Registrato il {formatDate(user.createdAt)}
+                      {user.organizationUsers.length} organizzazioni •
+                      Registrato il {formatDate(user.createdAt)}
                     </p>
                   </div>
                   <Link
@@ -283,9 +355,14 @@ export default async function AdminDashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Organizzazioni Recenti</CardTitle>
-                <CardDescription>Ultime 5 organizzazioni create</CardDescription>
+                <CardDescription>
+                  Ultime 5 organizzazioni create
+                </CardDescription>
               </div>
-              <Link href="/admin/organizations" className="text-sm text-blue-600 hover:underline">
+              <Link
+                href="/admin/organizations"
+                className="text-sm text-blue-600 hover:underline"
+              >
                 Vedi tutte →
               </Link>
             </div>
@@ -293,11 +370,15 @@ export default async function AdminDashboardPage() {
           <CardContent>
             <div className="space-y-4">
               {data.recentOrganizations.map((org) => (
-                <div key={org.id} className="flex items-center justify-between border-b pb-4 last:border-0">
+                <div
+                  key={org.id}
+                  className="flex items-center justify-between border-b pb-4 last:border-0"
+                >
                   <div>
                     <p className="font-medium">{org.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {org.users.length} utenti • {org._count.people} persone • {org._count.structures} strutture
+                      {org.users.length} utenti • {org._count.people} persone •{" "}
+                      {org._count.structures} strutture
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Creata il {formatDate(org.createdAt)}
