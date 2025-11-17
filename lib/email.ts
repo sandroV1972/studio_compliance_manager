@@ -2,14 +2,14 @@ import nodemailer from "nodemailer";
 
 // Configura il transporter per l'invio email
 export const emailTransporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || "localhost",
-  port: parseInt(process.env.EMAIL_PORT || "1025"),
+  host: process.env.SMTP_HOST || "localhost",
+  port: parseInt(process.env.SMTP_PORT || "1025"),
   secure: false, // true per 465, false per altri
   auth:
-    process.env.EMAIL_USER && process.env.EMAIL_PASSWORD
+    process.env.SMTP_USER && process.env.SMTP_PASSWORD
       ? {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASSWORD,
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASSWORD,
         }
       : undefined,
   // Per MailHog non serve autenticazione
