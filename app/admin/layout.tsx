@@ -81,6 +81,7 @@ export default async function AdminLayout({
             />
             <Link
               href="/auth/logout"
+              prefetch={false}
               className="flex items-center gap-2 text-sm text-white bg-red-500 hover:bg-red-600 px-4 py-2 rounded-md transition-colors font-medium"
             >
               <LogOut className="h-4 w-4" />
