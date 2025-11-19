@@ -23,7 +23,7 @@ echo "✓ Database is ready"
 # 2. Run migrations
 echo ""
 echo "Running database migrations..."
-npx prisma migrate deploy
+node node_modules/.bin/prisma migrate deploy
 echo "✓ Migrations completed"
 
 # 3. Initialize super admin
@@ -37,7 +37,7 @@ echo "✓ Migrations completed"
 # DISABLED: Seed is run manually via simple-reset.js
 # echo ""
 # echo "Seeding database with global templates..."
-# npx prisma db seed
+# node node_modules/.bin/prisma db seed
 # echo "✓ Database seeded"
 
 # 5. Start application
