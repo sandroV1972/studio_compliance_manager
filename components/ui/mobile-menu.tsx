@@ -83,6 +83,7 @@ export function MobileMenu({ items, userName, userEmail }: MobileMenuProps) {
               <div className="pt-4 border-t border-gray-200">
                 <Link
                   href="/auth/logout"
+                  prefetch={false}
                   onClick={() => setIsOpen(false)}
                   className="block w-full text-center px-4 py-2 text-sm text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors font-medium"
                 >
