@@ -48,10 +48,8 @@ export default function OnboardingPage() {
         throw new Error(errorMessage);
       }
 
-      // Aspetta un attimo per assicurarsi che il database sia aggiornato
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Usa window.location.href per un hard redirect che forza il refresh
+      // Forza un hard redirect per aggiornare la sessione
+      // Questo fa sì che il middleware ricontrolli needsOnboarding dal database
       window.location.href = "/dashboard";
     } catch (error) {
       console.error("Errore:", error);
