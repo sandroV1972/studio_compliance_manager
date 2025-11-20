@@ -30,6 +30,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+  cookies: {
+    sessionToken: {
+      name: `authjs.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: true, // Always true since we're behind HTTPS nginx proxy
+      },
+    },
+  },
   pages: {
     signIn: "/auth/login",
     error: "/auth/error",
