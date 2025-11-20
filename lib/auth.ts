@@ -125,19 +125,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user.id;
         token.isSuperAdmin = user.isSuperAdmin;
         token.needsOnboarding = user.needsOnboarding;
-      } else if (token.id) {
-        // Ricontrolla needsOnboarding dal database ad ogni richiesta
-        // Questo assicura che dopo l'onboarding il valore sia aggiornato
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.id as string },
-          select: { needsOnboarding: true, isSuperAdmin: true },
-        });
-        if (dbUser) {
-          token.needsOnboarding = dbUser.needsOnboarding;
-          token.isSuperAdmin = dbUser.isSuperAdmin;
-        }
       }
-
       return token;
     },
     async session({ session, token }) {

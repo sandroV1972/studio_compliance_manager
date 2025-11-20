@@ -48,9 +48,9 @@ export default function OnboardingPage() {
         throw new Error(errorMessage);
       }
 
-      // Forza un hard redirect per aggiornare la sessione
-      // Questo fa sì che il middleware ricontrolli needsOnboarding dal database
-      window.location.href = "/dashboard";
+      // Dopo aver completato l'onboarding, fai logout e redirect al login
+      // L'utente dovrà rifare login e il JWT sarà ricreato con needsOnboarding: false
+      window.location.href = "/auth/logout";
     } catch (error) {
       console.error("Errore:", error);
       const errorMessage =
