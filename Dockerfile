@@ -51,10 +51,12 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/.bin ./node_modules/.bin
+
+# Copia tutti i node_modules dal builder (necessari per le migrazioni Prisma)
+# Next.js standalone include già le dipendenze runtime dell'app
+# ma Prisma CLI ha bisogno di tutte le sue dipendenze per le migrazioni
+COPY --from=builder /app/node_modules ./node_modules
+
 COPY --from=builder /app/scripts ./scripts
 
 # Installa netcat per health check database
