@@ -39,7 +39,13 @@ export default function OnboardingPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Errore nella creazione dell'organizzazione");
+        const errorData = await response.json();
+        const errorMessage =
+          errorData.details ||
+          errorData.error ||
+          "Errore nella creazione dell'organizzazione";
+        console.error("Server error:", errorData);
+        throw new Error(errorMessage);
       }
 
       // Aspetta un attimo per assicurarsi che il database sia aggiornato
@@ -49,7 +55,11 @@ export default function OnboardingPage() {
       window.location.href = "/dashboard";
     } catch (error) {
       console.error("Errore:", error);
-      alert("Errore nella creazione dell'organizzazione");
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Errore nella creazione dell'organizzazione";
+      alert(errorMessage);
       setLoading(false);
     }
   };

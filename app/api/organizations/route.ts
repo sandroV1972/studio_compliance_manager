@@ -47,8 +47,16 @@ export async function POST(request: Request) {
     return NextResponse.json(organization);
   } catch (error) {
     console.error("Errore creazione organizzazione:", error);
+    // Log dettagliato dell'errore
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
     return NextResponse.json(
-      { error: "Errore nella creazione dell'organizzazione" },
+      {
+        error: "Errore nella creazione dell'organizzazione",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 },
     );
   }
