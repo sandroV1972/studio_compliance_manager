@@ -27,6 +27,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { DeadlineCalendar } from "@/components/structures/deadline-calendar";
+import { NewDeadlineModal } from "@/components/deadlines/new-deadline-modal";
 
 interface Structure {
   id: string;
@@ -68,10 +69,25 @@ export default function StructureDashboard() {
   >([]);
   const [allDeadlines, setAllDeadlines] = useState<DeadlineInstance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isNewDeadlineModalOpen, setIsNewDeadlineModalOpen] = useState(false);
+  const [organizationId, setOrganizationId] = useState<string>("");
 
   useEffect(() => {
+    loadOrganization();
     loadData();
   }, [structureId]);
+
+  const loadOrganization = async () => {
+    try {
+      const response = await fetch("/api/user/organization");
+      if (!response.ok) return;
+      const result = await response.json();
+      const data = result.data || result;
+      setOrganizationId(data.id);
+    } catch (error) {
+      console.error("Errore caricamento organizzazione:", error);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -100,6 +116,11 @@ export default function StructureDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleNewDeadlineClose = () => {
+    setIsNewDeadlineModalOpen(false);
+    loadData(); // Ricarica le scadenze dopo la creazione
   };
 
   const getDeadlineStatusBadge = (status: string) => {
@@ -258,9 +279,7 @@ export default function StructureDashboard() {
             <Button
               variant="outline"
               className="h-20 flex flex-col gap-2"
-              onClick={() =>
-                router.push(`/structures/${structureId}/deadlines/new`)
-              }
+              onClick={() => setIsNewDeadlineModalOpen(true)}
             >
               <CalendarPlus className="h-6 w-6 text-blue-600" />
               <span className="text-sm">Nuova Scadenza</span>
@@ -412,6 +431,15 @@ export default function StructureDashboard() {
           </Card>
         </div>
       </div>
+
+      {/* Modale Nuova Scadenza */}
+      {organizationId && (
+        <NewDeadlineModal
+          isOpen={isNewDeadlineModalOpen}
+          onClose={handleNewDeadlineClose}
+          organizationId={organizationId}
+        />
+      )}
     </div>
   );
 }
