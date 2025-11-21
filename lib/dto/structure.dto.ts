@@ -9,6 +9,11 @@ export type StructureWithRelations = Structure & {
     personStructures: number;
     deadlineInstances: number;
   };
+  responsiblePerson?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
 };
 
 // Create Structure Input

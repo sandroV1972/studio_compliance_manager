@@ -41,9 +41,20 @@ export class DeadlineService {
     });
 
     // Validazione input
+    this.logger.info({
+      msg: "Validating deadline data",
+      data: input.data,
+    });
     const validation = validateRequest(createDeadlineSchema, input.data);
     if (!validation.success || !validation.data) {
-      throw new ValidationError("Dati deadline non validi");
+      this.logger.error({
+        msg: "Validation failed",
+        errors: validation.errorDetails,
+        data: input.data,
+      });
+      throw new ValidationError(
+        `Dati deadline non validi: ${JSON.stringify(validation.errorDetails)}`,
+      );
     }
 
     const validatedData = validation.data;
@@ -75,6 +86,7 @@ export class DeadlineService {
         structureId: validatedData.structureId || null,
         personId: validatedData.personId || null,
         notes: validatedData.notes?.trim() || null,
+        complianceType: validatedData.complianceType || null,
         status: "PENDING",
         // Crea i reminders se presenti
         reminders: {

@@ -30,7 +30,6 @@ export default function EditStructurePage() {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [people, setPeople] = useState<Person[]>([]);
-  const [organizationId, setOrganizationId] = useState<string>("");
   const [formData, setFormData] = useState({
     name: "",
     code: "",
@@ -62,8 +61,12 @@ export default function EditStructurePage() {
       // Carica organizzazione
       const orgResponse = await fetch("/api/user/organization");
       if (!orgResponse.ok) throw new Error("Errore caricamento organizzazione");
-      const orgData = await orgResponse.json();
-      setOrganizationId(orgData.id);
+      const orgResponseData = await orgResponse.json();
+      const orgData = orgResponseData.data; // Unwrap envelope
+
+      if (!orgData) {
+        throw new Error("Nessuna organizzazione trovata per l'utente");
+      }
 
       // Carica persone
       const peopleResponse = await fetch(
@@ -125,15 +128,6 @@ export default function EditStructurePage() {
       return `${numbers.slice(0, 2)}/${numbers.slice(2)}`;
     else
       return `${numbers.slice(0, 2)}/${numbers.slice(2, 4)}/${numbers.slice(4, 8)}`;
-  };
-
-  const convertDateToISO = (dateStr: string): string | null => {
-    if (!dateStr) return null;
-    const parts = dateStr.split("/");
-    if (parts.length !== 3) return null;
-    const [day, month, year] = parts;
-    if (!day || !month || !year) return null;
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

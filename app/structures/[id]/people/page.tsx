@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Mail, Phone, Calendar, User } from "lucide-react";
+import { NewPersonModal } from "@/components/people/new-person-modal";
 
 interface Person {
   id: string;
@@ -35,6 +36,7 @@ export default function PeoplePage() {
 
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isNewPersonModalOpen, setIsNewPersonModalOpen] = useState(false);
 
   useEffect(() => {
     loadPeople();
@@ -51,6 +53,11 @@ export default function PeoplePage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleNewPersonClose = () => {
+    setIsNewPersonModalOpen(false);
+    loadPeople(); // Ricarica la lista dopo l'aggiunta
   };
 
   if (loading) {
@@ -70,9 +77,7 @@ export default function PeoplePage() {
             Gestisci il personale della struttura
           </p>
         </div>
-        <Button
-          onClick={() => router.push(`/structures/${structureId}/people/new`)}
-        >
+        <Button onClick={() => setIsNewPersonModalOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Aggiungi Personale
         </Button>
@@ -174,6 +179,13 @@ export default function PeoplePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Modale Nuovo Personale */}
+      <NewPersonModal
+        isOpen={isNewPersonModalOpen}
+        onClose={handleNewPersonClose}
+        structureId={structureId}
+      />
     </div>
   );
 }

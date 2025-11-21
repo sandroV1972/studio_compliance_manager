@@ -3,13 +3,35 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  ChevronLeft,
+  ChevronRight,
+  User,
+  Building2,
+  Calendar,
+} from "lucide-react";
 
 interface Deadline {
   id: string;
   title: string;
   dueDate: string;
   status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "OVERDUE" | "CANCELLED";
+  complianceType?: string;
+  notes?: string | null;
+  person?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
+  template?: {
+    title: string;
+    complianceType: string;
+  } | null;
 }
 
 interface DeadlineCalendarProps {
@@ -193,20 +215,98 @@ export function DeadlineCalendar({ deadlines }: DeadlineCalendarProps) {
               {dayDeadlines.length > 0 && (
                 <div className="space-y-1">
                   {dayDeadlines.slice(0, 2).map((deadline) => (
-                    <div
-                      key={deadline.id}
-                      className="text-xs truncate"
-                      title={deadline.title}
-                    >
-                      <div
-                        className={`
-                          ${getStatusColor(deadline.status)}
-                          text-white px-1 py-0.5 rounded
-                        `}
-                      >
-                        {deadline.title}
-                      </div>
-                    </div>
+                    <Popover key={deadline.id}>
+                      <PopoverTrigger asChild>
+                        <div
+                          className="text-xs truncate cursor-pointer"
+                          title={deadline.title}
+                        >
+                          <div
+                            className={`
+                              ${getStatusColor(deadline.status)}
+                              text-white px-1 py-0.5 rounded hover:opacity-90 transition-opacity
+                            `}
+                          >
+                            {deadline.title}
+                          </div>
+                        </div>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80" align="start">
+                        <div className="space-y-3">
+                          <div>
+                            <h4 className="font-semibold text-sm mb-1">
+                              {deadline.title}
+                            </h4>
+                            <p className="text-xs text-gray-500">
+                              <Calendar className="inline h-3 w-3 mr-1" />
+                              {new Date(deadline.dueDate).toLocaleDateString(
+                                "it-IT",
+                                {
+                                  day: "numeric",
+                                  month: "long",
+                                  year: "numeric",
+                                },
+                              )}
+                            </p>
+                          </div>
+
+                          {/* Assegnazione */}
+                          <div className="flex items-center gap-2 text-xs">
+                            {deadline.person ? (
+                              <>
+                                <User className="h-4 w-4 text-purple-600" />
+                                <span className="font-medium">
+                                  {deadline.person.firstName}{" "}
+                                  {deadline.person.lastName}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <Building2 className="h-4 w-4 text-blue-600" />
+                                <span className="font-medium">Struttura</span>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Tipo compliance */}
+                          {(deadline.complianceType ||
+                            deadline.template?.complianceType) && (
+                            <div className="text-xs">
+                              <span className="text-gray-500">Tipo: </span>
+                              <Badge variant="outline" className="text-xs">
+                                {deadline.complianceType ||
+                                  deadline.template?.complianceType}
+                              </Badge>
+                            </div>
+                          )}
+
+                          {/* Status */}
+                          <div className="text-xs">
+                            <span className="text-gray-500">Stato: </span>
+                            <Badge
+                              variant="outline"
+                              className={`text-xs ${getStatusColor(deadline.status)} text-white border-0`}
+                            >
+                              {deadline.status === "PENDING" && "In attesa"}
+                              {deadline.status === "IN_PROGRESS" && "In corso"}
+                              {deadline.status === "COMPLETED" && "Completato"}
+                              {deadline.status === "OVERDUE" && "Scaduto"}
+                              {deadline.status === "CANCELLED" && "Annullato"}
+                            </Badge>
+                          </div>
+
+                          {/* Note */}
+                          {deadline.notes && (
+                            <div className="text-xs">
+                              <span className="text-gray-500">Note: </span>
+                              <p className="text-gray-700 mt-1">
+                                {deadline.notes}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   ))}
                   {dayDeadlines.length > 2 && (
                     <div className="text-xs text-gray-500 text-center">

@@ -79,10 +79,14 @@ export const accountStatusSchema = z.enum([
 
 // Enum per ComplianceType
 export const complianceTypeSchema = z.enum([
-  "PRIVACY",
-  "SAFETY",
-  "QUALITY",
-  "ENVIRONMENT",
+  "TRAINING",
+  "MAINTENANCE",
+  "INSPECTION",
+  "DOCUMENT",
+  "REPORTING",
+  "WASTE",
+  "DATA_PROTECTION",
+  "INSURANCE",
   "OTHER",
 ]);
 

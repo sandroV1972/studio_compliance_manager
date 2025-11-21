@@ -21,7 +21,6 @@ import {
   FileText,
   Edit,
 } from "lucide-react";
-import Link from "next/link";
 
 interface Person {
   id: string;
@@ -65,19 +64,30 @@ export default function PersonDetailPage() {
 
   const [person, setPerson] = useState<Person | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadPerson();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [personId]);
 
   const loadPerson = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const response = await fetch(`/api/people/${personId}`);
-      if (!response.ok) throw new Error("Persona non trovata");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Persona non trovata");
+      }
       const data = await response.json();
       setPerson(data);
     } catch (error) {
       console.error("Errore:", error);
+      setError(
+        error instanceof Error ? error.message : "Errore nel caricamento",
+      );
+      setPerson(null);
     } finally {
       setLoading(false);
     }
@@ -106,8 +116,17 @@ export default function PersonDetailPage() {
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">
-              Persona non trovata
+              {error || "Persona non trovata"}
             </p>
+            <div className="flex justify-center mt-4">
+              <Button
+                variant="outline"
+                onClick={() => router.push(`/structures/${structureId}/people`)}
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Torna al Personale
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

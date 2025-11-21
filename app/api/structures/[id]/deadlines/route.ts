@@ -40,9 +40,20 @@ export async function GET(
       return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
     }
 
+    // Trova tutte le persone assegnate a questa struttura
+    const peopleInStructure = await prisma.personStructure.findMany({
+      where: { structureId: structureId },
+      select: { personId: true },
+    });
+    const personIds = peopleInStructure.map((ps) => ps.personId);
+
     // Query base per le scadenze della struttura
+    // Include scadenze assegnate alla struttura O alle persone che lavorano nella struttura
     const whereClause: any = {
-      structureId: structureId,
+      OR: [
+        { structureId: structureId }, // Scadenze assegnate alla struttura
+        { personId: { in: personIds } }, // Scadenze assegnate alle persone della struttura
+      ],
       status: { not: "CANCELLED" },
     };
 
@@ -55,6 +66,13 @@ export async function GET(
     const deadlines = await prisma.deadlineInstance.findMany({
       where: whereClause,
       include: {
+        person: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
         template: {
           select: {
             title: true,

@@ -185,8 +185,12 @@ export function NewDeadlineModal({
       );
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Errore durante la creazione");
+        const errorData = await response.json();
+        const errorMessage =
+          errorData.error?.message ||
+          errorData.error ||
+          "Errore durante la creazione";
+        throw new Error(errorMessage);
       }
 
       router.refresh();
@@ -248,8 +252,12 @@ export function NewDeadlineModal({
       );
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Errore nella generazione");
+        const errorData = await response.json();
+        const errorMessage =
+          errorData.error?.message ||
+          errorData.error ||
+          "Errore nella generazione";
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();

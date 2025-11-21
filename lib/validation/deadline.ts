@@ -22,10 +22,11 @@ export const reminderSchema = z.object({
 // Create Deadline (manual)
 export const createDeadlineSchema = z.object({
   title: nameSchema,
-  dueDate: dateISOSchema,
-  personId: uuidSchema.optional(),
-  structureId: uuidSchema.optional(),
-  notes: z.string().max(1000).optional(),
+  dueDate: z.string().min(1, "Data di scadenza obbligatoria"), // Accetta formato data semplice
+  personId: uuidSchema.optional().nullable(),
+  structureId: uuidSchema.optional().nullable(),
+  notes: z.string().max(1000).optional().nullable(),
+  complianceType: complianceTypeSchema.optional(),
   reminders: z.array(reminderSchema).optional(),
 });
 

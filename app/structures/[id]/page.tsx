@@ -25,9 +25,23 @@ import {
   AlertCircle,
   Clock,
   CheckCircle2,
+  User,
+  Eye,
+  Globe,
+  Shield,
+  Briefcase,
 } from "lucide-react";
 import { DeadlineCalendar } from "@/components/structures/deadline-calendar";
 import { NewDeadlineModal } from "@/components/deadlines/new-deadline-modal";
+import { NewPersonModal } from "@/components/people/new-person-modal";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Structure {
   id: string;
@@ -39,6 +53,22 @@ interface Structure {
   postalCode: string | null;
   phone: string | null;
   email: string | null;
+  pec: string | null;
+  website: string | null;
+  vatNumber: string | null;
+  fiscalCode: string | null;
+  responsiblePersonId: string | null;
+  responsiblePerson?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
+  legalRepName: string | null;
+  licenseNumber: string | null;
+  licenseExpiry: string | null;
+  insurancePolicy: string | null;
+  insuranceExpiry: string | null;
+  notes: string | null;
   active: boolean;
   _count: {
     personStructures: number;
@@ -52,6 +82,11 @@ interface DeadlineInstance {
   dueDate: string;
   status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "OVERDUE" | "CANCELLED";
   notes: string | null;
+  person?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
   template?: {
     title: string;
     complianceType: string;
@@ -70,6 +105,7 @@ export default function StructureDashboard() {
   const [allDeadlines, setAllDeadlines] = useState<DeadlineInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [isNewDeadlineModalOpen, setIsNewDeadlineModalOpen] = useState(false);
+  const [isNewPersonModalOpen, setIsNewPersonModalOpen] = useState(false);
   const [organizationId, setOrganizationId] = useState<string>("");
 
   useEffect(() => {
@@ -121,6 +157,11 @@ export default function StructureDashboard() {
   const handleNewDeadlineClose = () => {
     setIsNewDeadlineModalOpen(false);
     loadData(); // Ricarica le scadenze dopo la creazione
+  };
+
+  const handleNewPersonClose = () => {
+    setIsNewPersonModalOpen(false);
+    loadData(); // Ricarica i dati dopo l'aggiunta del personale
   };
 
   const getDeadlineStatusBadge = (status: string) => {
@@ -246,14 +287,276 @@ export default function StructureDashboard() {
             )}
           </div>
         </div>
-        <Button
-          onClick={() => router.push(`/structures/${structureId}/edit`)}
-          variant="outline"
-          className="flex items-center gap-2"
-        >
-          <Edit className="h-4 w-4" />
-          Modifica Struttura
-        </Button>
+        <div className="flex gap-2">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="flex items-center gap-2">
+                <Eye className="h-4 w-4" />
+                Visualizza Dettagli
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl h-[85vh] flex flex-col">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Building2 className="h-6 w-6 text-purple-600" />
+                  Dettagli Struttura: {structure.name}
+                </DialogTitle>
+              </DialogHeader>
+
+              <Tabs
+                defaultValue="general"
+                className="w-full flex-1 flex flex-col overflow-hidden"
+              >
+                <TabsList className="grid w-full grid-cols-4 flex-shrink-0">
+                  <TabsTrigger value="general">Generale</TabsTrigger>
+                  <TabsTrigger value="contacts">Contatti</TabsTrigger>
+                  <TabsTrigger value="fiscal">Dati Fiscali</TabsTrigger>
+                  <TabsTrigger value="licenses">Autorizzazioni</TabsTrigger>
+                </TabsList>
+
+                <TabsContent
+                  value="general"
+                  className="space-y-4 mt-4 overflow-y-auto flex-1 pr-2"
+                >
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Nome Struttura
+                      </label>
+                      <p className="text-sm mt-1">{structure.name}</p>
+                    </div>
+                    {structure.code && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">
+                          Codice
+                        </label>
+                        <p className="text-sm mt-1">{structure.code}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {structure.address && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Indirizzo
+                      </label>
+                      <p className="text-sm mt-1">{structure.address}</p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-4">
+                    {structure.city && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">
+                          Città
+                        </label>
+                        <p className="text-sm mt-1">{structure.city}</p>
+                      </div>
+                    )}
+                    {structure.province && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">
+                          Provincia
+                        </label>
+                        <p className="text-sm mt-1">{structure.province}</p>
+                      </div>
+                    )}
+                    {structure.postalCode && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">
+                          CAP
+                        </label>
+                        <p className="text-sm mt-1">{structure.postalCode}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {structure.notes && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Note
+                      </label>
+                      <p className="text-sm mt-1 whitespace-pre-wrap">
+                        {structure.notes}
+                      </p>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent
+                  value="contacts"
+                  className="space-y-4 mt-4 overflow-y-auto flex-1 pr-2"
+                >
+                  <div className="grid grid-cols-2 gap-4">
+                    {structure.phone && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                          <Phone className="h-3 w-3" /> Telefono
+                        </label>
+                        <a
+                          href={`tel:${structure.phone}`}
+                          className="text-sm mt-1 text-blue-600 hover:underline block"
+                        >
+                          {structure.phone}
+                        </a>
+                      </div>
+                    )}
+                    {structure.email && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                          <Mail className="h-3 w-3" /> Email
+                        </label>
+                        <a
+                          href={`mailto:${structure.email}`}
+                          className="text-sm mt-1 text-blue-600 hover:underline block"
+                        >
+                          {structure.email}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {structure.pec && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                          <Mail className="h-3 w-3" /> PEC
+                        </label>
+                        <a
+                          href={`mailto:${structure.pec}`}
+                          className="text-sm mt-1 text-blue-600 hover:underline block"
+                        >
+                          {structure.pec}
+                        </a>
+                      </div>
+                    )}
+                    {structure.website && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                          <Globe className="h-3 w-3" /> Sito Web
+                        </label>
+                        <a
+                          href={structure.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm mt-1 text-blue-600 hover:underline block"
+                        >
+                          {structure.website}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent
+                  value="fiscal"
+                  className="space-y-4 mt-4 overflow-y-auto flex-1 pr-2"
+                >
+                  <div className="grid grid-cols-2 gap-4">
+                    {structure.vatNumber && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">
+                          Partita IVA
+                        </label>
+                        <p className="text-sm mt-1">{structure.vatNumber}</p>
+                      </div>
+                    )}
+                    {structure.fiscalCode && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">
+                          Codice Fiscale
+                        </label>
+                        <p className="text-sm mt-1">{structure.fiscalCode}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {structure.responsiblePerson && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                        <User className="h-3 w-3" /> Persona Responsabile
+                      </label>
+                      <p className="text-sm mt-1">
+                        {structure.responsiblePerson.firstName}{" "}
+                        {structure.responsiblePerson.lastName}
+                      </p>
+                    </div>
+                  )}
+
+                  {structure.legalRepName && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                        <Briefcase className="h-3 w-3" /> Rappresentante Legale
+                      </label>
+                      <p className="text-sm mt-1">{structure.legalRepName}</p>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent
+                  value="licenses"
+                  className="space-y-4 mt-4 overflow-y-auto flex-1 pr-2"
+                >
+                  <div className="grid grid-cols-2 gap-4">
+                    {structure.licenseNumber && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                          <Shield className="h-3 w-3" /> Autorizzazione
+                          Sanitaria
+                        </label>
+                        <p className="text-sm mt-1">
+                          {structure.licenseNumber}
+                        </p>
+                      </div>
+                    )}
+                    {structure.licenseExpiry && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">
+                          Scadenza Autorizzazione
+                        </label>
+                        <p className="text-sm mt-1">
+                          {formatDate(structure.licenseExpiry)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {structure.insurancePolicy && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                          <Shield className="h-3 w-3" /> Polizza Assicurativa
+                        </label>
+                        <p className="text-sm mt-1">
+                          {structure.insurancePolicy}
+                        </p>
+                      </div>
+                    )}
+                    {structure.insuranceExpiry && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">
+                          Scadenza Polizza
+                        </label>
+                        <p className="text-sm mt-1">
+                          {formatDate(structure.insuranceExpiry)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </DialogContent>
+          </Dialog>
+
+          <Button
+            onClick={() => router.push(`/structures/${structureId}/edit`)}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <Edit className="h-4 w-4" />
+            Modifica Struttura
+          </Button>
+        </div>
       </div>
 
       {/* Tasti Rapidi */}
@@ -269,9 +572,7 @@ export default function StructureDashboard() {
             <Button
               variant="outline"
               className="h-20 flex flex-col gap-2"
-              onClick={() =>
-                router.push(`/structures/${structureId}/people/new`)
-              }
+              onClick={() => setIsNewPersonModalOpen(true)}
             >
               <UserPlus className="h-6 w-6 text-purple-600" />
               <span className="text-sm">Aggiungi Personale</span>
@@ -392,9 +693,29 @@ export default function StructureDashboard() {
                         }
                       >
                         <div className="flex items-start justify-between mb-1">
-                          <h4 className="font-medium text-sm">
-                            {deadline.title}
-                          </h4>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-sm">
+                              {deadline.title}
+                            </h4>
+                            <div className="flex items-center gap-1 mt-1">
+                              {deadline.person ? (
+                                <>
+                                  <User className="h-3 w-3 text-purple-600" />
+                                  <span className="text-xs text-purple-600 font-medium">
+                                    {deadline.person.firstName}{" "}
+                                    {deadline.person.lastName}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <Building2 className="h-3 w-3 text-blue-600" />
+                                  <span className="text-xs text-blue-600 font-medium">
+                                    Struttura
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
                           {getDeadlineStatusBadge(deadline.status)}
                         </div>
                         <p className="text-xs text-muted-foreground mb-2">
@@ -440,6 +761,13 @@ export default function StructureDashboard() {
           organizationId={organizationId}
         />
       )}
+
+      {/* Modale Nuovo Personale */}
+      <NewPersonModal
+        isOpen={isNewPersonModalOpen}
+        onClose={handleNewPersonClose}
+        structureId={structureId}
+      />
     </div>
   );
 }

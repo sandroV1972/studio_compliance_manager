@@ -11,7 +11,25 @@ export async function POST(request: Request) {
 
     const data = await request.json();
 
-    // Crea organizzazione e aggiorna utente in una transazione
+    // Recupera i dati dell'utente
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, email: true },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Utente non trovato" },
+        { status: 404 },
+      );
+    }
+
+    // Dividi il nome completo in nome e cognome
+    const nameParts = user.name?.split(" ") || ["", ""];
+    const firstName = nameParts[0] || "Admin";
+    const lastName = nameParts.slice(1).join(" ") || "User";
+
+    // Crea organizzazione, persona e aggiorna utente in una transazione
     const organization = await prisma.$transaction(async (tx) => {
       // Crea l'organizzazione con l'utente come OWNER
       const org = await tx.organization.create({
@@ -32,6 +50,18 @@ export async function POST(request: Request) {
               role: "OWNER",
             },
           },
+        },
+      });
+
+      // Crea una persona per l'utente che ha creato l'organizzazione
+      await tx.person.create({
+        data: {
+          organizationId: org.id,
+          firstName: firstName,
+          lastName: lastName,
+          email: user.email,
+          notes: "Creatore dell'organizzazione",
+          active: true,
         },
       });
 

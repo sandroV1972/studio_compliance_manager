@@ -244,6 +244,7 @@ model Structure {
   active Boolean @default(true)
 
   organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  responsiblePerson Person?            @relation("StructureResponsible", fields: [responsiblePersonId], references: [id], onDelete: SetNull)
   personStructures  PersonStructure[]
   roleAssignments   RoleAssignment[]
   deadlineInstances DeadlineInstance[]
@@ -270,10 +271,11 @@ model Person {
   notes          String?
   active         Boolean   @default(true)
 
-  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  structures        PersonStructure[]
-  roleAssignments   RoleAssignment[]
-  deadlineInstances DeadlineInstance[]
+  organization             Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  structures               PersonStructure[]
+  roleAssignments          RoleAssignment[]
+  deadlineInstances        DeadlineInstance[]
+  responsibleForStructures Structure[]        @relation("StructureResponsible")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -354,7 +356,7 @@ model DeadlineTemplate {
 }
 
 model DeadlineInstance {
-  id                   String         @id @default(cuid())
+  id                   String          @id @default(cuid())
   organizationId       String
   templateId           String?
   structureId          String?
@@ -362,10 +364,11 @@ model DeadlineInstance {
   roleAssignmentId     String?
   title                String
   dueDate              DateTime
-  status               DeadlineStatus @default(PENDING)
+  status               DeadlineStatus  @default(PENDING)
   completedAt          DateTime?
   completionDocumentId String?
   notes                String?
+  complianceType       ComplianceType? // Tipo di compliance per scadenze manuali
 
   // Campi per la gestione della ricorrenza
   isRecurring       Boolean   @default(false) // Se questa istanza fa parte di una serie ricorrente

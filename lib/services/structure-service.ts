@@ -97,8 +97,23 @@ export class StructureService {
                 deadlineInstances: true,
               },
             },
+            responsiblePerson: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
           }
-        : undefined,
+        : {
+            responsiblePerson: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
     });
 
     if (!structure) {
