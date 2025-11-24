@@ -175,7 +175,7 @@ export async function GET(
     const month = searchParams.get("month");
     const year = searchParams.get("year");
     const structureId = searchParams.get("structureId");
-    const requiresDocument = searchParams.get("requiresDocument");
+    // requiresDocument parameter removed - now we show ALL deadlines when filtering for documents
     const nextOccurrenceOnly = searchParams.get("nextOccurrenceOnly");
 
     const paginationParams = getPaginationParams(searchParams);
@@ -207,17 +207,12 @@ export async function GET(
       }
     }
 
-    // Filtro per scadenze che richiedono documenti
+    // Filtro per scadenze quando l'utente vuole caricare documenti da adempimento
+    // Mostra TUTTE le scadenze (sia quelle create manualmente che da template)
+    // perché l'utente può voler associare un documento a qualsiasi adempimento
     let documentFilter = {};
-    if (requiresDocument === "true") {
-      documentFilter = {
-        template: {
-          requiredDocumentName: {
-            not: null,
-          },
-        },
-      };
-    }
+    // Il parametro requiresDocument="true" non filtra più nulla,
+    // semplicemente indica che stiamo cercando scadenze per associarvi documenti
 
     // Build the where clause
     const whereClause = {

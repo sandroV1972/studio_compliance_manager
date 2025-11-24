@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FileText, Upload, Download, Trash2 } from "lucide-react";
+import { FileText, Upload, Download, Trash2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -41,6 +41,8 @@ export function DeadlineDocumentsBadge({
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewFileName, setPreviewFileName] = useState<string>("");
 
   // Carica i documenti al mount per mostrare il conteggio
   useEffect(() => {
@@ -136,6 +138,31 @@ export function DeadlineDocumentsBadge({
     }
   };
 
+  const handlePreview = async (documentId: string, fileName: string) => {
+    try {
+      const response = await fetch(
+        `/api/organizations/${organizationId}/documents/${documentId}`,
+      );
+      if (!response.ok) throw new Error("Errore preview");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      setPreviewUrl(url);
+      setPreviewFileName(fileName);
+    } catch (error) {
+      console.error("Errore:", error);
+      alert("Errore durante il caricamento dell'anteprima");
+    }
+  };
+
+  const closePreview = () => {
+    if (previewUrl) {
+      window.URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+    setPreviewFileName("");
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + " B";
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB";
@@ -151,8 +178,6 @@ export function DeadlineDocumentsBadge({
       minute: "2-digit",
     });
   };
-
-  if (!requiredDocumentName) return null;
 
   return (
     <>
@@ -178,10 +203,14 @@ export function DeadlineDocumentsBadge({
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Documenti Obbligatori</DialogTitle>
-            <DialogDescription>
-              Documento richiesto: <strong>{requiredDocumentName}</strong>
-            </DialogDescription>
+            <DialogTitle>
+              {requiredDocumentName ? "Documenti Obbligatori" : "Documenti"}
+            </DialogTitle>
+            {requiredDocumentName && (
+              <DialogDescription>
+                Documento richiesto: <strong>{requiredDocumentName}</strong>
+              </DialogDescription>
+            )}
           </DialogHeader>
 
           <div className="space-y-4">
@@ -210,9 +239,11 @@ export function DeadlineDocumentsBadge({
               <div className="text-center py-8 text-muted-foreground">
                 <FileText className="h-12 w-12 mx-auto mb-2 text-gray-400" />
                 <p>Nessun documento caricato</p>
-                <p className="text-sm mt-1">
-                  Carica il documento richiesto: {requiredDocumentName}
-                </p>
+                {requiredDocumentName && (
+                  <p className="text-sm mt-1">
+                    Carica il documento richiesto: {requiredDocumentName}
+                  </p>
+                )}
               </div>
             ) : (
               <div className="space-y-2">
@@ -243,7 +274,16 @@ export function DeadlineDocumentsBadge({
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => handlePreview(doc.id, doc.fileName)}
+                        title="Anteprima"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleDownload(doc.id, doc.fileName)}
+                        title="Scarica"
                       >
                         <Download className="h-4 w-4" />
                       </Button>
@@ -251,6 +291,7 @@ export function DeadlineDocumentsBadge({
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(doc.id)}
+                        title="Elimina"
                       >
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
@@ -258,6 +299,28 @@ export function DeadlineDocumentsBadge({
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview Dialog */}
+      <Dialog
+        open={!!previewUrl}
+        onOpenChange={(open) => !open && closePreview()}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Anteprima Documento</DialogTitle>
+            <DialogDescription>{previewFileName}</DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {previewUrl && (
+              <iframe
+                src={previewUrl}
+                className="w-full h-[70vh] border-0"
+                title="Anteprima documento"
+              />
             )}
           </div>
         </DialogContent>

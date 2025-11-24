@@ -41,7 +41,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Structure {
   id: string;
@@ -295,256 +294,266 @@ export default function StructureDashboard() {
                 Visualizza Dettagli
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl h-[85vh] flex flex-col">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
+            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader className="pb-4 border-b">
+                <DialogTitle className="flex items-center gap-2 text-xl">
                   <Building2 className="h-6 w-6 text-purple-600" />
-                  Dettagli Struttura: {structure.name}
+                  {structure.name}
                 </DialogTitle>
+                {structure.code && (
+                  <p className="text-sm text-muted-foreground">
+                    Codice: {structure.code}
+                  </p>
+                )}
               </DialogHeader>
 
-              <Tabs
-                defaultValue="general"
-                className="w-full flex-1 flex flex-col overflow-hidden"
-              >
-                <TabsList className="grid w-full grid-cols-4 flex-shrink-0">
-                  <TabsTrigger value="general">Generale</TabsTrigger>
-                  <TabsTrigger value="contacts">Contatti</TabsTrigger>
-                  <TabsTrigger value="fiscal">Dati Fiscali</TabsTrigger>
-                  <TabsTrigger value="licenses">Autorizzazioni</TabsTrigger>
-                </TabsList>
+              <div className="space-y-6 pt-4">
+                {/* Sezione Informazioni Generali */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wide flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Sede e Contatti
+                  </h3>
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                    {structure.address && (
+                      <div className="flex gap-3">
+                        <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">
+                            {structure.address}
+                          </p>
+                          {(structure.city ||
+                            structure.postalCode ||
+                            structure.province) && (
+                            <p className="text-sm text-gray-600">
+                              {structure.postalCode &&
+                                `${structure.postalCode} `}
+                              {structure.city}
+                              {structure.province && ` (${structure.province})`}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
-                <TabsContent
-                  value="general"
-                  className="space-y-4 mt-4 overflow-y-auto flex-1 pr-2"
-                >
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">
-                        Nome Struttura
-                      </label>
-                      <p className="text-sm mt-1">{structure.name}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {structure.phone && (
+                        <div className="flex gap-3">
+                          <Phone className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-gray-500">Telefono</p>
+                            <a
+                              href={`tel:${structure.phone}`}
+                              className="text-sm font-medium text-blue-600 hover:underline"
+                            >
+                              {structure.phone}
+                            </a>
+                          </div>
+                        </div>
+                      )}
+
+                      {structure.email && (
+                        <div className="flex gap-3">
+                          <Mail className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-gray-500">Email</p>
+                            <a
+                              href={`mailto:${structure.email}`}
+                              className="text-sm font-medium text-blue-600 hover:underline break-all"
+                            >
+                              {structure.email}
+                            </a>
+                          </div>
+                        </div>
+                      )}
+
+                      {structure.pec && (
+                        <div className="flex gap-3">
+                          <Mail className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-gray-500">PEC</p>
+                            <a
+                              href={`mailto:${structure.pec}`}
+                              className="text-sm font-medium text-blue-600 hover:underline break-all"
+                            >
+                              {structure.pec}
+                            </a>
+                          </div>
+                        </div>
+                      )}
+
+                      {structure.website && (
+                        <div className="flex gap-3">
+                          <Globe className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-gray-500">Sito Web</p>
+                            <a
+                              href={structure.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-medium text-blue-600 hover:underline break-all"
+                            >
+                              {structure.website}
+                            </a>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {structure.code && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">
-                          Codice
-                        </label>
-                        <p className="text-sm mt-1">{structure.code}</p>
-                      </div>
-                    )}
                   </div>
+                </div>
 
-                  {structure.address && (
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">
-                        Indirizzo
-                      </label>
-                      <p className="text-sm mt-1">{structure.address}</p>
+                {/* Sezione Dati Fiscali */}
+                {(structure.vatNumber ||
+                  structure.fiscalCode ||
+                  structure.responsiblePerson ||
+                  structure.legalRepName) && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold text-blue-700 uppercase tracking-wide flex items-center gap-2">
+                      <Briefcase className="h-4 w-4" />
+                      Dati Fiscali e Legali
+                    </h3>
+                    <div className="bg-blue-50 rounded-lg p-4 space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {structure.vatNumber && (
+                          <div>
+                            <p className="text-xs text-gray-500">Partita IVA</p>
+                            <p className="text-sm font-medium text-gray-900">
+                              {structure.vatNumber}
+                            </p>
+                          </div>
+                        )}
+                        {structure.fiscalCode && (
+                          <div>
+                            <p className="text-xs text-gray-500">
+                              Codice Fiscale
+                            </p>
+                            <p className="text-sm font-medium text-gray-900">
+                              {structure.fiscalCode}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {structure.responsiblePerson && (
+                        <div className="flex gap-3 pt-2 border-t border-blue-200">
+                          <User className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-gray-500">
+                              Persona Responsabile
+                            </p>
+                            <p className="text-sm font-medium text-gray-900">
+                              {structure.responsiblePerson.firstName}{" "}
+                              {structure.responsiblePerson.lastName}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {structure.legalRepName && (
+                        <div className="flex gap-3">
+                          <Briefcase className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-gray-500">
+                              Rappresentante Legale
+                            </p>
+                            <p className="text-sm font-medium text-gray-900">
+                              {structure.legalRepName}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-
-                  <div className="grid grid-cols-3 gap-4">
-                    {structure.city && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">
-                          Città
-                        </label>
-                        <p className="text-sm mt-1">{structure.city}</p>
-                      </div>
-                    )}
-                    {structure.province && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">
-                          Provincia
-                        </label>
-                        <p className="text-sm mt-1">{structure.province}</p>
-                      </div>
-                    )}
-                    {structure.postalCode && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">
-                          CAP
-                        </label>
-                        <p className="text-sm mt-1">{structure.postalCode}</p>
-                      </div>
-                    )}
                   </div>
+                )}
 
-                  {structure.notes && (
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">
-                        Note
-                      </label>
-                      <p className="text-sm mt-1 whitespace-pre-wrap">
+                {/* Sezione Autorizzazioni */}
+                {(structure.licenseNumber ||
+                  structure.licenseExpiry ||
+                  structure.insurancePolicy ||
+                  structure.insuranceExpiry) && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold text-green-700 uppercase tracking-wide flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      Autorizzazioni e Assicurazioni
+                    </h3>
+                    <div className="bg-green-50 rounded-lg p-4 space-y-4">
+                      {(structure.licenseNumber || structure.licenseExpiry) && (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-2">
+                            Autorizzazione Sanitaria
+                          </p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {structure.licenseNumber && (
+                              <div>
+                                <p className="text-xs text-gray-500">Numero</p>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {structure.licenseNumber}
+                                </p>
+                              </div>
+                            )}
+                            {structure.licenseExpiry && (
+                              <div>
+                                <p className="text-xs text-gray-500">
+                                  Scadenza
+                                </p>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {formatDate(structure.licenseExpiry)}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {(structure.insurancePolicy ||
+                        structure.insuranceExpiry) && (
+                        <div className="pt-3 border-t border-green-200">
+                          <p className="text-xs text-gray-500 mb-2">
+                            Polizza Assicurativa
+                          </p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {structure.insurancePolicy && (
+                              <div>
+                                <p className="text-xs text-gray-500">
+                                  Numero Polizza
+                                </p>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {structure.insurancePolicy}
+                                </p>
+                              </div>
+                            )}
+                            {structure.insuranceExpiry && (
+                              <div>
+                                <p className="text-xs text-gray-500">
+                                  Scadenza
+                                </p>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {formatDate(structure.insuranceExpiry)}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Sezione Note */}
+                {structure.notes && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Note
+                    </h3>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-900 whitespace-pre-wrap">
                         {structure.notes}
                       </p>
                     </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent
-                  value="contacts"
-                  className="space-y-4 mt-4 overflow-y-auto flex-1 pr-2"
-                >
-                  <div className="grid grid-cols-2 gap-4">
-                    {structure.phone && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                          <Phone className="h-3 w-3" /> Telefono
-                        </label>
-                        <a
-                          href={`tel:${structure.phone}`}
-                          className="text-sm mt-1 text-blue-600 hover:underline block"
-                        >
-                          {structure.phone}
-                        </a>
-                      </div>
-                    )}
-                    {structure.email && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                          <Mail className="h-3 w-3" /> Email
-                        </label>
-                        <a
-                          href={`mailto:${structure.email}`}
-                          className="text-sm mt-1 text-blue-600 hover:underline block"
-                        >
-                          {structure.email}
-                        </a>
-                      </div>
-                    )}
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    {structure.pec && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                          <Mail className="h-3 w-3" /> PEC
-                        </label>
-                        <a
-                          href={`mailto:${structure.pec}`}
-                          className="text-sm mt-1 text-blue-600 hover:underline block"
-                        >
-                          {structure.pec}
-                        </a>
-                      </div>
-                    )}
-                    {structure.website && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                          <Globe className="h-3 w-3" /> Sito Web
-                        </label>
-                        <a
-                          href={structure.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm mt-1 text-blue-600 hover:underline block"
-                        >
-                          {structure.website}
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-
-                <TabsContent
-                  value="fiscal"
-                  className="space-y-4 mt-4 overflow-y-auto flex-1 pr-2"
-                >
-                  <div className="grid grid-cols-2 gap-4">
-                    {structure.vatNumber && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">
-                          Partita IVA
-                        </label>
-                        <p className="text-sm mt-1">{structure.vatNumber}</p>
-                      </div>
-                    )}
-                    {structure.fiscalCode && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">
-                          Codice Fiscale
-                        </label>
-                        <p className="text-sm mt-1">{structure.fiscalCode}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {structure.responsiblePerson && (
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                        <User className="h-3 w-3" /> Persona Responsabile
-                      </label>
-                      <p className="text-sm mt-1">
-                        {structure.responsiblePerson.firstName}{" "}
-                        {structure.responsiblePerson.lastName}
-                      </p>
-                    </div>
-                  )}
-
-                  {structure.legalRepName && (
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                        <Briefcase className="h-3 w-3" /> Rappresentante Legale
-                      </label>
-                      <p className="text-sm mt-1">{structure.legalRepName}</p>
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent
-                  value="licenses"
-                  className="space-y-4 mt-4 overflow-y-auto flex-1 pr-2"
-                >
-                  <div className="grid grid-cols-2 gap-4">
-                    {structure.licenseNumber && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                          <Shield className="h-3 w-3" /> Autorizzazione
-                          Sanitaria
-                        </label>
-                        <p className="text-sm mt-1">
-                          {structure.licenseNumber}
-                        </p>
-                      </div>
-                    )}
-                    {structure.licenseExpiry && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">
-                          Scadenza Autorizzazione
-                        </label>
-                        <p className="text-sm mt-1">
-                          {formatDate(structure.licenseExpiry)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    {structure.insurancePolicy && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                          <Shield className="h-3 w-3" /> Polizza Assicurativa
-                        </label>
-                        <p className="text-sm mt-1">
-                          {structure.insurancePolicy}
-                        </p>
-                      </div>
-                    )}
-                    {structure.insuranceExpiry && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">
-                          Scadenza Polizza
-                        </label>
-                        <p className="text-sm mt-1">
-                          {formatDate(structure.insuranceExpiry)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-              </Tabs>
+                )}
+              </div>
             </DialogContent>
           </Dialog>
 

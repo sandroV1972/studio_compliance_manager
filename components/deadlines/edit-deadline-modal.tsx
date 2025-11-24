@@ -209,8 +209,6 @@ export default function EditDeadlineModal({
         return;
       }
 
-      const dueDateISO = dueDate.toISOString().split("T")[0];
-
       const response = await fetch(
         `/api/organizations/${organizationId}/deadlines/${deadlineId}`,
         {
@@ -220,7 +218,7 @@ export default function EditDeadlineModal({
           },
           body: JSON.stringify({
             title: formData.title.trim(),
-            dueDate: dueDateISO,
+            dueDate: dueDate.toISOString(),
             personId: formData.scope === "PERSON" ? formData.personId : null,
             structureId:
               formData.scope === "STRUCTURE" ? formData.structureId : null,
@@ -232,8 +230,13 @@ export default function EditDeadlineModal({
       );
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Errore durante l'aggiornamento");
+        const errorData = await response.json();
+        const errorMessage =
+          errorData.error ||
+          errorData.message ||
+          "Errore durante l'aggiornamento";
+        console.error("API Error:", errorData);
+        throw new Error(errorMessage);
       }
 
       onSuccess();
@@ -241,11 +244,13 @@ export default function EditDeadlineModal({
       alert("Scadenza aggiornata con successo");
     } catch (error) {
       console.error("Error updating deadline:", error);
-      alert(
+      const errorMessage =
         error instanceof Error
           ? error.message
-          : "Errore durante l'aggiornamento della scadenza",
-      );
+          : typeof error === "string"
+            ? error
+            : "Errore durante l'aggiornamento della scadenza";
+      alert(errorMessage);
     } finally {
       setIsSaving(false);
     }

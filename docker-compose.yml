@@ -1,28 +1,165 @@
-version: '3.8'
+# ============================================
+# DOCKER COMPOSE - DEVELOPMENT
+# ============================================
+# Ambiente di sviluppo completo con tutti i servizi
+# Allineato all'ambiente pre-prod/prod
+# ============================================
 
 services:
+  # ==========================================
+  # PostgreSQL Database
+  # ==========================================
   postgres:
     image: postgres:16-alpine
-    container_name: studio_compliance_db
+    container_name: studio-compliance-dev-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: studio_compliance
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-studio_compliance}
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dev-network
 
+  # ==========================================
+  # Redis Cache
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: studio-compliance-dev-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-dev_redis_password}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dev-network
+
+  # ==========================================
+  # MailHog (Email testing per dev)
+  # ==========================================
   mailhog:
     image: mailhog/mailhog:latest
-    container_name: studio_compliance_mailhog
+    container_name: studio-compliance-dev-mailhog
     restart: unless-stopped
     ports:
       - "1025:1025"  # SMTP server
       - "8025:8025"  # Web UI
     environment:
       MH_STORAGE: memory
+    networks:
+      - dev-network
 
+  # ==========================================
+  # Next.js Application
+  # ==========================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: studio-compliance-dev-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-studio_compliance}?schema=public
+
+      # NextAuth
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-secret-change-in-production}
+
+      # Email (MailHog per dev)
+      EMAIL_HOST: mailhog
+      EMAIL_PORT: 1025
+      EMAIL_USER: ""
+      EMAIL_PASSWORD: ""
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@studiocompliance.local}
+
+      # Redis
+      REDIS_URL: redis://:${REDIS_PASSWORD:-dev_redis_password}@redis:6379
+
+      # App Config
+      NODE_ENV: development
+      APP_NAME: "Studio Compliance Manager - DEV"
+      APP_URL: ${APP_URL:-http://localhost:3000}
+
+      # Storage
+      STORAGE_TYPE: ${STORAGE_TYPE:-local}
+      UPLOAD_DIR: /app/uploads
+
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      LOG_DIR: /app/logs
+
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - dev-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ==========================================
+  # Nginx Reverse Proxy (opzionale per dev)
+  # ==========================================
+  nginx:
+    image: nginx:alpine
+    container_name: studio-compliance-dev-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - app
+    networks:
+      - dev-network
+    profiles:
+      - with-nginx
+
+# ==========================================
+# Volumes persistenti
+# ==========================================
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  nginx_logs:
+    driver: local
+
+# ==========================================
+# Network
+# ==========================================
+networks:
+  dev-network:
+    driver: bridge

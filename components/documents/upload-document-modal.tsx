@@ -121,8 +121,9 @@ export default function UploadDocumentModal({
         `/api/organizations/${organizationId}/deadlines?requiresDocument=true`,
       );
       if (!response.ok) throw new Error("Errore caricamento scadenze");
-      const data = await response.json();
-      setDeadlines(data.deadlines || []);
+      const result = await response.json();
+      // L'API restituisce una risposta paginata con { data: [...], metadata: {...}, stats: {...} }
+      setDeadlines(result.data || []);
     } catch (error) {
       console.error("Errore caricamento scadenze:", error);
       setDeadlines([]);

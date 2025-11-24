@@ -247,20 +247,18 @@ export default function DeadlinesPage() {
                               {formatDate(deadline.dueDate)}
                             </span>
                           </div>
-                          {/* Bottone documenti in basso */}
-                          {deadline.template?.requiredDocumentName && (
-                            <div className="mt-3">
-                              <DeadlineDocumentsBadge
-                                organizationId={organizationId}
-                                deadlineId={deadline.id}
-                                requiredDocumentName={
-                                  deadline.template.requiredDocumentName
-                                }
-                                structureId={structureId}
-                                structureName={deadline.structure?.name || ""}
-                              />
-                            </div>
-                          )}
+                          {/* Bottone documenti sempre visibile */}
+                          <div className="mt-3">
+                            <DeadlineDocumentsBadge
+                              organizationId={organizationId}
+                              deadlineId={deadline.id}
+                              requiredDocumentName={
+                                deadline.template?.requiredDocumentName || null
+                              }
+                              structureId={structureId}
+                              structureName={deadline.structure?.name || ""}
+                            />
+                          </div>
                         </div>
 
                         {/* Solo bottone Modifica a destra */}

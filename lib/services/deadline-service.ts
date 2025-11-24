@@ -234,6 +234,19 @@ export class DeadlineService {
       },
     });
 
+    // Se la data viene modificata in una scadenza ricorrente, aggiorna tutte le occorrenze future
+    if (
+      validatedData.dueDate !== undefined &&
+      existingDeadline.isRecurring &&
+      existingDeadline.recurrenceGroupId &&
+      existingDeadline.templateId
+    ) {
+      await this.updateFutureRecurringInstances(
+        existingDeadline,
+        updateData.dueDate,
+      );
+    }
+
     // Crea audit log
     await this.createAuditLog(
       input.organizationId,
@@ -616,6 +629,112 @@ export class DeadlineService {
         msg: "Next recurring instance generated",
         deadlineId: deadline.id,
         nextDueDate,
+      });
+    }
+  }
+
+  /**
+   * Aggiorna tutte le occorrenze future di una scadenza ricorrente
+   * quando viene modificata la data dell'occorrenza corrente
+   */
+  private async updateFutureRecurringInstances(
+    deadline: DeadlineWithRelations,
+    newDueDate: Date,
+  ): Promise<void> {
+    if (!deadline.recurrenceGroupId || !deadline.templateId) return;
+
+    // Ottieni il template per la ricorrenza
+    const template = await this.db.deadlineTemplate.findUnique({
+      where: { id: deadline.templateId },
+    });
+
+    if (!template || !template.recurrenceUnit || !template.recurrenceEvery)
+      return;
+
+    // Elimina tutte le occorrenze future PENDING dello stesso gruppo
+    await this.db.deadlineInstance.deleteMany({
+      where: {
+        recurrenceGroupId: deadline.recurrenceGroupId,
+        status: "PENDING",
+        dueDate: {
+          gt: deadline.dueDate, // Maggiore della data originale
+        },
+      },
+    });
+
+    this.logger.info({
+      msg: "Future recurring instances deleted",
+      recurrenceGroupId: deadline.recurrenceGroupId,
+    });
+
+    // Conta quante scadenze PENDING ci sono già nel gruppo dopo la delete
+    // (dovrebbe includere quella corrente se è PENDING, altrimenti solo quelle future)
+    const existingPending = await this.db.deadlineInstance.count({
+      where: {
+        recurrenceGroupId: deadline.recurrenceGroupId,
+        status: "PENDING",
+      },
+    });
+
+    this.logger.info({
+      msg: "Existing PENDING instances after delete",
+      count: existingPending,
+      recurrenceGroupId: deadline.recurrenceGroupId,
+    });
+
+    // Rigenera le occorrenze future con la nuova data base
+    const instances: any[] = [];
+    let currentDate = new Date(newDueDate);
+
+    // Genera occorrenze fino ad avere massimo 3 PENDING nel gruppo
+    const maxToGenerate = Math.max(0, 3 - existingPending);
+
+    this.logger.info({
+      msg: "Will generate instances",
+      maxToGenerate,
+      recurrenceGroupId: deadline.recurrenceGroupId,
+    });
+
+    for (let i = 0; i < maxToGenerate; i++) {
+      currentDate = this.calculateNextDueDate(
+        currentDate,
+        template.recurrenceUnit,
+        template.recurrenceEvery,
+      );
+
+      // Verifica se rientra nel limite di recurrenceEndDate
+      if (
+        deadline.recurrenceEndDate &&
+        currentDate > deadline.recurrenceEndDate
+      ) {
+        break;
+      }
+
+      instances.push({
+        organizationId: deadline.organizationId,
+        templateId: deadline.templateId,
+        title: deadline.title,
+        dueDate: currentDate,
+        status: "PENDING",
+        personId: deadline.personId,
+        structureId: deadline.structureId,
+        notes: deadline.notes,
+        isRecurring: true,
+        recurrenceActive: true,
+        recurrenceEndDate: deadline.recurrenceEndDate,
+        recurrenceGroupId: deadline.recurrenceGroupId,
+      });
+    }
+
+    if (instances.length > 0) {
+      await this.db.deadlineInstance.createMany({
+        data: instances,
+      });
+
+      this.logger.info({
+        msg: "Future recurring instances regenerated",
+        count: instances.length,
+        recurrenceGroupId: deadline.recurrenceGroupId,
       });
     }
   }
